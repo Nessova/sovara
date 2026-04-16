@@ -1601,6 +1601,7 @@
                 if (newCount > 0) {
                     targetChat.updated = new Date().toISOString();
                     saveState();
+                    await syncToCloud();
                     loadChat(targetChat.id);
                     showToast(`💌 ${newCount} new message${newCount > 1 ? 's' : ''} from ${appState.aiName}!`);
                 }
