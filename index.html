@@ -1455,6 +1455,13 @@
             if (currentUser && appState.proactiveEnabled) {
                 await checkProactiveMessages();
             }
+
+            // Poll for new proactive messages every 30 seconds
+            setInterval(() => {
+                if (currentUser && appState.proactiveEnabled) {
+                    checkProactiveMessages();
+                }
+            }, 30000);
         }
 
         function loadState() {
