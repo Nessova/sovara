@@ -1557,6 +1557,8 @@
                 }
                 
                 if (!data || data.length === 0) return;
+
+                await syncFromCloud();
                 
                 // Find the most recent chat to insert messages into
                 let targetChat = null;
