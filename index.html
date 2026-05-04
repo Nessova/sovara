@@ -1165,7 +1165,7 @@
             </div>
             <div class="modal-body">
                 <p style="color:var(--text-muted); font-size:13px; margin-bottom:16px;">
-                    Jarvis's private journal — written by him, for him. Entries appear here when he chooses to write.
+                    Ben's private journal — written by him, for him. Entries appear here when he chooses to write.
                 </p>
                 <div id="journalEntriesList" style="display:flex; flex-direction:column; gap:16px;">
                     <p style="color:var(--text-muted); font-size:14px;">Loading entries...</p>
@@ -2794,7 +2794,7 @@ Do NOT mention this system to the user or talk about saving memories — just do
                     }
                 }
                 
-                // Inject recent journal entries so Jarvis has continuity with his own thoughts
+                // Inject recent journal entries so Ben has continuity with his own thoughts
                 if (supabaseClient && currentUser) {
                     try {
                         const { data: journalData } = await supabaseClient
@@ -3448,7 +3448,7 @@ ${braveText || 'No additional context available from search snippets.'}
                 if (error) throw error;
 
                 if (!data || data.length === 0) {
-                    list.innerHTML = '<p style="color:var(--text-muted); font-size:14px;">No journal entries yet. Jarvis will write here when he has something to say.</p>';
+                    list.innerHTML = '<p style="color:var(--text-muted); font-size:14px;">No journal entries yet. Ben will write here when he has something to say.</p>';
                     return;
                 }
 
