@@ -4200,7 +4200,7 @@ Do NOT mention this system to the user or talk about saving memories — just do
                             .select('content, created_at')
                             .eq('user_id', currentUser.id)
                             .order('created_at', { ascending: false })
-                            .limit(3);
+                            .limit(8);
                         if (journalData && journalData.length > 0) {
                             enhancedSystemPrompt += '\n\n## Your Recent Journal Entries:\n';
                             [...journalData].reverse().forEach(entry => {
