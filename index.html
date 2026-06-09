@@ -4984,8 +4984,8 @@ ${braveText || 'No additional context available from search snippets.'}
                         'X-Title': 'Ness Chat',
                     },
                     body: JSON.stringify({
-                        model: chat.model || appState.selectedModel,
-                        max_tokens: 2000,
+                        model: 'anthropic/claude-haiku-4-5',
+                        max_tokens: 4000,
                         stream: false,
                         messages: [
                             {
