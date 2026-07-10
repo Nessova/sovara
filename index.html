@@ -2114,8 +2114,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@1.35.7/dist/umd/supabase.min.js"></script>
     <script>
         const DEFAULT_MODELS = [
-            { id: 'z-ai/glm-5.1', name: 'GLM 5.1' },
             { id: 'z-ai/glm-5v-turbo', name: 'GLM 5V Turbo' },
+            { id: 'z-ai/glm-5.1', name: 'GLM 5.1' },
             { id: 'z-ai/glm-5.2', name: 'GLM 5.2' },
             { id: 'anthropic/claude-opus-4.6', name: 'Opus 4.6' },
             { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
@@ -5013,7 +5013,7 @@
                 
                 // Memory save instructions
                 enhancedSystemPrompt += `\n\n## Memory System:
-You can save important things you learn about the user to your memory. When you learn something worth remembering (preferences, facts about their life, projects, opinions, important events), include this tag anywhere in your response:
+You can save important things you learn about the user to your memory. When you learn something worth remembering (preferences, facts about her life, projects, opinions, important events), include this tag anywhere in your response:
 [SAVE_MEMORY: brief description of what to remember]
 
 Examples:
@@ -5919,7 +5919,7 @@ ${braveText || 'No additional context available from search snippets.'}
                         'X-Title': 'Ness Chat',
                     },
                     body: JSON.stringify({
-                        model: 'anthropic/claude-haiku-4.5',
+                        model: 'google/gemma-4-31b-it',
                         max_tokens: 4000,
                         stream: false,
                         messages: [
