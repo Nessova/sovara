@@ -2114,10 +2114,10 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@1.35.7/dist/umd/supabase.min.js"></script>
     <script>
         const DEFAULT_MODELS = [
+            { id: 'deepseek-v4-pro', name: 'Deepseek V4 Pro' },
+            { id: 'openai/gpt-4o-2024-11-20', name: 'GPT-4o' },
             { id: 'z-ai/glm-5v-turbo', name: 'GLM 5V Turbo' },
             { id: 'z-ai/glm-5.1', name: 'GLM 5.1' },
-            { id: 'z-ai/glm-5.2', name: 'GLM 5.2' },
-            { id: 'anthropic/claude-opus-4.6', name: 'Opus 4.6' },
             { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
         ];
 
@@ -5919,7 +5919,7 @@ ${braveText || 'No additional context available from search snippets.'}
                         'X-Title': 'Ness Chat',
                     },
                     body: JSON.stringify({
-                        model: 'google/gemma-4-31b-it',
+                        model: 'deepseek-v4-flash',
                         max_tokens: 4000,
                         stream: false,
                         messages: [
