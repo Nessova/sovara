@@ -1847,6 +1847,12 @@
                 <p style="color:var(--text-muted); font-size:13px; margin-bottom:16px;">
                     Ben's private journal — written by him, for him. Entries appear here when he chooses to write.
                 </p>
+                <div style="display:flex; gap:8px; align-items:center; margin-bottom:20px; flex-wrap:wrap;">
+                    <select id="journalChatPicker" style="flex:1; min-width:0; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg-tertiary); color:var(--text-primary); font-size:13px; font-family:inherit;">
+                        <option value="">— Most recent chat —</option>
+                    </select>
+                    <button id="journalTriggerBtn" style="padding:8px 14px; border-radius:8px; border:none; background:var(--accent-alt); color:var(--text-primary); font-size:13px; font-family:inherit; font-weight:500; cursor:pointer; white-space:nowrap;">✍ Write entry</button>
+                </div>
                 <div id="journalEntriesList" style="display:flex; flex-direction:column; gap:16px;">
                     <p style="color:var(--text-muted); font-size:14px;">Loading entries...</p>
                 </div>
@@ -6006,16 +6012,71 @@ ${braveText || 'No additional context available from search snippets.'}
             closeSidebar();
             const modal = document.getElementById('journalModal');
             const list = document.getElementById('journalEntriesList');
+            const picker = document.getElementById('journalChatPicker');
+            const triggerBtn = document.getElementById('journalTriggerBtn');
             modal.classList.add('open');
             list.innerHTML = '<p style="color:var(--text-muted); font-size:14px;">Loading entries...</p>';
 
             document.getElementById('journalClose').onclick = () => modal.classList.remove('open');
+
+            // Populate chat picker
+            picker.innerHTML = '<option value="">— Most recent chat —</option>';
+            const sortedChats = [...appState.chats]
+                .filter(c => c.messages && c.messages.length > 0)
+                .sort((a, b) => new Date(b.updated || b.created).getTime() - new Date(a.updated || a.created).getTime());
+            sortedChats.forEach(chat => {
+                const opt = document.createElement('option');
+                opt.value = chat.id;
+                opt.textContent = chat.title || 'Untitled chat';
+                picker.appendChild(opt);
+            });
+
+            // Trigger journal entry manually
+            triggerBtn.onclick = async () => {
+                const selectedChatId = picker.value || null;
+                triggerBtn.textContent = '⏳ Writing...';
+                triggerBtn.disabled = true;
+                try {
+                    const payload = { journal: true };
+                    if (selectedChatId) payload.chat_id = selectedChatId;
+                    const res = await fetch(`${appState.supabaseUrl}/functions/v1/proactive-message`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${appState.supabaseKey}`
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+                    if (data.skipped) {
+                        triggerBtn.textContent = '😶 Nothing to write';
+                    } else if (data.success) {
+                        triggerBtn.textContent = '✅ Entry written!';
+                        // Reload entries
+                        await loadJournalEntries(list);
+                    } else {
+                        triggerBtn.textContent = '❌ Error';
+                        console.error('Journal trigger error:', data);
+                    }
+                } catch(e) {
+                    triggerBtn.textContent = '❌ Failed';
+                    console.error('Journal trigger failed:', e);
+                }
+                setTimeout(() => {
+                    triggerBtn.textContent = '✍ Write entry';
+                    triggerBtn.disabled = false;
+                }, 3000);
+            };
 
             if (!supabaseClient || !currentUser) {
                 list.innerHTML = '<p style="color:var(--text-muted); font-size:14px;">Sign in to view journal entries.</p>';
                 return;
             }
 
+            await loadJournalEntries(list);
+        }
+
+        async function loadJournalEntries(list) {
             try {
                 const { data, error } = await supabaseClient
                     .from('journal')
