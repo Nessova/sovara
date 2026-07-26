@@ -1271,7 +1271,7 @@
         }
 
         html.dark .sidebar-btn {
-            background: #1B1F26;
+            background: var(--bg-secondary);
             color: var(--text-secondary);
             border-color: var(--border);
         }
@@ -1289,7 +1289,7 @@
 
         html.dark .new-project-btn:hover {
             background: var(--sidebar-hover);
-            border-color: #3A404C;
+            border-color: var(--border);
             color: var(--text-primary);
         }
 
@@ -3914,7 +3914,7 @@
                 document.documentElement.classList.add('dark');
                 const btn = document.getElementById('darkModeBtn');
                 if (btn) btn.textContent = '☀️ Light Mode';
-                if (themeMeta) themeMeta.setAttribute('content', '#171A20');
+                if (themeMeta) themeMeta.setAttribute('content', '#1C1714');
             } else {
                 document.documentElement.classList.remove('dark');
                 const btn = document.getElementById('darkModeBtn');
