@@ -1798,7 +1798,35 @@
         .message-bubble {
             font-size: 1.00rem;
         }
-        
+
+        /* === FINAL DARK SIDEBAR INTERACTION OVERRIDES === */
+
+        /* + New Chat button hover */
+        html.dark .new-chat-btn:hover {
+            background: #382C26 !important;
+            border-color: #382C26 !important;
+            color: var(--text-primary) !important;
+        }
+
+        /* Folder tabs default */
+        html.dark .folder-tab {
+            background: var(--bg-tertiary);
+            border-color: var(--border);
+        }
+
+        /* Folder tab active state */
+        html.dark .folder-tab.active {
+            background: #382C26 !important;
+            border-color: #382C26 !important;
+            color: var(--text-primary) !important;
+        }
+
+        /* General sidebar buttons hover */
+        html.dark .sidebar-btn:hover {
+            background: #382C26 !important;
+            border-color: #382C26 !important;
+            color: var(--text-primary) !important;
+        }
     </style>
     <!-- PDF.js library for client-side PDF text extraction -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
