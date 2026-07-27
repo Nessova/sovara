@@ -1246,7 +1246,7 @@
         }
 
         html.dark .message-bubble pre {
-            background: #1a1a1e;
+            background: #221C18;
             border-color: var(--border);
         }
 
@@ -1350,6 +1350,16 @@
             color: var(--text-primary);
         }
 
+        /* Dark mode – chat action buttons (trim, export, thinking, etc.) */
+        html.dark .chat-header button:hover,
+        html.dark .chat-actions button:hover,
+        html.dark .message-actions button:hover,
+        html.dark button.icon-btn:hover {
+            background: #4A3C36 !important;
+            border-color: #4A3C36 !important;
+            color: var(--text-primary) !important;
+        }
+        
         .thinking-block {
             margin-bottom: 6px;
             border-left: 2px solid var(--accent-dim);
