@@ -5725,7 +5725,7 @@ ${braveText || 'No additional context available from search snippets.'}
                     scrollToBottom();
 
                     try {
-                        const imgRes = await fetch('https://openrouter.ai/api/v1/images/generations', {
+                        const imgRes = await fetch('https://openrouter.ai/api/v1/images', {
                             method: 'POST',
                             headers: {
                                 'Authorization': `Bearer ${appState.apiKey}`,
@@ -5739,9 +5739,14 @@ ${braveText || 'No additional context available from search snippets.'}
                             })
                         });
                         const imgData = await imgRes.json();
-                        const b64 = imgData?.data?.[0]?.b64_json;
+                        const entry = imgData?.data?.[0];
+                        const b64 = entry?.b64_json;
+                        const mediaType = entry?.media_type || 'image/png';
+                        const imgUrl = entry?.url;
                         if (b64) {
-                            const dataUrl = `data:image/png;base64,${b64}`;
+                            const dataUrl = `data:${mediaType};base64,${b64}`;
+                        } else if (imgUrl) {
+                            const dataUrl = imgUrl;
                             chat.messages[chat.messages.length - 1].image_url = dataUrl;
                             renderMessages();
                         } else {
