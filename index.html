@@ -5702,6 +5702,61 @@ ${braveText || 'No additional context available from search snippets.'}
                     }
                 }
 
+                // Detect [IMAGE_GEN: prompt] tag and generate image via SeedDream
+                const imageGenMatch = chat.messages[chat.messages.length - 1].content.match(/\[IMAGE_GEN:\s*([\s\S]*?)\]/i);
+                if (imageGenMatch) {
+                    const imagePrompt = imageGenMatch[1].trim();
+                    console.log('🎨 IMAGE_GEN detected:', imagePrompt);
+
+                    // Strip the tag from visible message
+                    chat.messages[chat.messages.length - 1].content =
+                        chat.messages[chat.messages.length - 1].content
+                            .replace(/\[IMAGE_GEN:\s*[\s\S]*?\]/gi, '')
+                            .trim();
+                    renderMessages();
+
+                    // Show a generating indicator
+                    const chatArea = document.getElementById('chatArea');
+                    const imgSeam = document.createElement('div');
+                    imgSeam.id = 'image-gen-seam';
+                    imgSeam.className = 'typing-indicator';
+                    imgSeam.innerHTML = `<div class="dot"></div><div class="dot"></div><div class="dot"></div><span style="margin-left:10px;">🎨 Generating image…</span>`;
+                    chatArea.appendChild(imgSeam);
+                    scrollToBottom();
+
+                    try {
+                        const imgRes = await fetch('https://openrouter.ai/api/v1/images/generations', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${appState.apiKey}`,
+                                'Content-Type': 'application/json',
+                                'X-Title': 'Ness Chat'
+                            },
+                            body: JSON.stringify({
+                                model: 'bytedance-seed/seedream-4.5',
+                                prompt: imagePrompt,
+                                n: 1
+                            })
+                        });
+                        const imgData = await imgRes.json();
+                        const b64 = imgData?.data?.[0]?.b64_json;
+                        if (b64) {
+                            const dataUrl = `data:image/png;base64,${b64}`;
+                            chat.messages[chat.messages.length - 1].image_url = dataUrl;
+                            renderMessages();
+                        } else {
+                            console.error('Image gen failed:', imgData);
+                            showToast('Image generation failed', true);
+                        }
+                    } catch (imgErr) {
+                        console.error('Image gen error:', imgErr);
+                        showToast('Image generation error: ' + imgErr.message, true);
+                    } finally {
+                        const seam = document.getElementById('image-gen-seam');
+                        if (seam) seam.remove();
+                    }
+                }
+
                 saveState();
                 if (currentUser) syncToCloud();
             } catch (e) {
