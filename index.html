@@ -5741,7 +5741,8 @@ ${braveText || 'No additional context available from search snippets.'}
                         console.log('🎨 Image API status:', imgRes.status, imgRes.statusText);
                         const imgData = await imgRes.json();
                         console.log('🎨 Image API response:', JSON.stringify(imgData));
-                        const entry = imgData?.data?.[0];
+                        const raw = imgData?.data?.[0];
+                        const entry = Array.isArray(raw) ? raw[0] : raw;
                         const b64 = entry?.b64_json;
                         const mediaType = entry?.media_type || 'image/png';
                         const imgUrl = entry?.url;
