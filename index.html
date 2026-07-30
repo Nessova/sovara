@@ -4125,6 +4125,19 @@
                     });
                 }
             }
+
+            // Render generated image (session-only, not persisted)
+            if (msg.image_ref && window._generatedImages && window._generatedImages[msg.image_ref]) {
+                const img = document.createElement('img');
+                img.className = 'chat-image';
+                img.src = window._generatedImages[msg.image_ref];
+                bubble.appendChild(img);
+            } else if (msg.image_url) {
+                const img = document.createElement('img');
+                img.className = 'chat-image';
+                img.src = msg.image_url;
+                bubble.appendChild(img);
+            }
             
             // Doc-edit proposal cards (assistant messages in project chats)
             if (msg.role === 'assistant' && msg.docEditProposals && msg.docEditProposals.length > 0) {
