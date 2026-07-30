@@ -5745,9 +5745,10 @@ ${braveText || 'No additional context available from search snippets.'}
                         const imgUrl = entry?.url;
                         if (b64) {
                             const dataUrl = `data:${mediaType};base64,${b64}`;
-                        } else if (imgUrl) {
-                            const dataUrl = imgUrl;
                             chat.messages[chat.messages.length - 1].image_url = dataUrl;
+                            renderMessages();
+                        } else if (imgUrl) {
+                            chat.messages[chat.messages.length - 1].image_url = imgUrl;
                             renderMessages();
                         } else {
                             console.error('Image gen failed:', imgData);
