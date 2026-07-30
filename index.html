@@ -5748,9 +5748,14 @@ ${braveText || 'No additional context available from search snippets.'}
                         const imgUrl = entry?.url;
                         if (b64) {
                             const dataUrl = `data:${mediaType};base64,${b64}`;
-                            chat.messages[chat.messages.length - 1].image_url = dataUrl;
+                           // Store in a session-only map — too large for localStorage
+                            if (!window._generatedImages) window._generatedImages = {};
+                            const imgId = 'img_' + Date.now();
+                            window._generatedImages[imgId] = dataUrl;
+                            chat.messages[chat.messages.length - 1].image_ref = imgId;
                             renderMessages();
                         } else if (imgUrl) {
+                            // URLs are small — safe to store directly
                             chat.messages[chat.messages.length - 1].image_url = imgUrl;
                             renderMessages();
                         } else {
