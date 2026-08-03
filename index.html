@@ -733,7 +733,8 @@
             line-height: 1.4;
             overflow: hidden;
             display: -webkit-box;
-            -webkit-line-clamp: 3;
+            line-clamp: 3;               /* standard */
+            -webkit-line-clamp: 3;       /* webkit fallback */
             -webkit-box-orient: vertical;
             border: 1px solid var(--border-light);
             transition: background 0.15s;
