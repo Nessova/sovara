@@ -6187,7 +6187,7 @@ ${braveText || 'No additional context available from search snippets.'}
                         messages: [
                             {
                                 role: 'user',
-                                content: `Please write a thorough summary of the following conversation. Cover all the main topics discussed, any decisions made, key information exchanged, and the general arc of the conversation. Write in plain prose.${truncated ? ' Note: the middle section was omitted due to length — please cover the opening and closing sections and note the gap.' : ''}\n\n${transcript}`
+                                content: `Summarize this conversation for an AI assistant to retain context after older messages are truncated. Be concise and information-dense — aim for 200-400 words. Focus on: decisions made, technical details (code changes, file names, bug fixes), key facts or context needed for continuity, and any unresolved threads. Skip pleasantries, play-by-play narration, and verbatim quotes. Use tight prose or brief bullet points. This is a context handoff, not a recap for a human reader.${truncated ? ' Note: the middle section was omitted due to length — summarize what is available and note the gap.' : ''}\n\n${transcript}`
                             }
                         ]
                     })
