@@ -3145,12 +3145,19 @@
                         title.className = 'project-chat-title';
                         title.textContent = chat.title;
 
+                        const renameBtn = document.createElement('button');
+                        renameBtn.className = 'project-chat-delete';
+                        renameBtn.textContent = '✎';
+                        renameBtn.title = 'Rename chat';
+                        renameBtn.onclick = (e) => renameChat(chat.id, e);
+                        
                         const del = document.createElement('button');
                         del.className = 'project-chat-delete';
                         del.textContent = '✕';
                         del.onclick = (e) => deleteChat(chat.id, e);
 
                         chatItem.appendChild(title);
+                        chatItem.appendChild(renameBtn);
                         chatItem.appendChild(del);
                         chatItem.onclick = () => {
                             loadChat(chat.id);
