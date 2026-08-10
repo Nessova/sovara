@@ -5170,7 +5170,7 @@
 
                 // Build enhanced system prompt with memories
                 let enhancedSystemPrompt = chatProject
-                    ? (chatProject.systemPrompt || '')
+                    ? (chatProject.systemPrompt || appState.systemPrompt || '')
                     : (appState.systemPrompt || '');
                 
                 // Add current date/time
