@@ -4383,6 +4383,14 @@
             branchBtn.title = 'Branch chat from here';
             branchBtn.onclick = () => branchChat(msgIndex);
             actions.appendChild(branchBtn);
+
+            // Delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'message-action-btn';
+            deleteBtn.innerHTML = '🗑';
+            deleteBtn.title = 'Delete message';
+            deleteBtn.onclick = () => deleteMessage(msgIndex);
+            actions.appendChild(deleteBtn);
             
             // Edit button (only for user messages)
             if (msg.role === 'user') {
@@ -4544,6 +4552,22 @@
             saveState();
             renderMessages();
             await streamResponse(chat, false);
+            syncToCloud();
+        }
+
+        function deleteMessage(msgIndex) {
+            const chat = getActiveChat();
+            if (!chat || !chat.messages || msgIndex < 0 || msgIndex >= chat.messages.length) return;
+
+            const confirmed = confirm('Delete this message?');
+            if (!confirmed) return;
+
+            chat.messages.splice(msgIndex, 1);
+            chat.updated = new Date().toISOString();
+
+            saveState();
+            renderMessages();
+            renderChatList();
             syncToCloud();
         }
 
