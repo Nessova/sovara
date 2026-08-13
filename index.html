@@ -628,6 +628,32 @@
             color: #2E2A26;
         }
 
+        .code-block-wrapper {
+            position: relative;
+        }
+
+        .code-copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 4px 10px;
+            font-size: 11px;
+            font-family: inherit;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            opacity: 0.75;
+            transition: opacity 0.15s, background 0.15s;
+        }
+
+        .code-copy-btn:hover {
+            opacity: 1;
+            background: var(--bg-hover);
+        }
+
         .message-bubble strong {
             font-weight: 600;
         }
@@ -1869,7 +1895,96 @@
             background: var(--bg-tertiary);
             border-top: 1px solid var(--border-light);
         }
-        
+
+        /* ── Studio ──────────────────────────────────────────────────────── */
+
+        .studio-note-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+        }
+
+        .studio-note-card:hover {
+            background: var(--bg-hover);
+            border-color: var(--accent-alt-dim);
+        }
+
+        .studio-note-title {
+            font-size: 14.5px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            word-break: break-word;
+        }
+
+        .studio-note-date {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .studio-note-preview {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            line-clamp: 2;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .studio-note-view {
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+
+        .studio-note-view code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+                         "Liberation Mono", "Courier New", monospace;
+            font-size: 13px;
+            background: #F0E9E2;
+            padding: 2px 6px;
+            border-radius: 6px;
+            color: #2E2A26;
+        }
+
+        .studio-note-view pre {
+            background: #F0E9E2;
+            padding: 14px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 12px 0;
+            border: 1px solid var(--border);
+        }
+
+        .studio-note-view pre code {
+            background: none;
+            padding: 0;
+            font-size: 13px;
+            color: #2E2A26;
+        }
+
+        html.dark .studio-note-view pre {
+            background: #2A2320;
+            border-color: var(--border);
+            color: #E6DED6;
+        }
+
+        html.dark .studio-note-view code {
+            background: #4A3C36;
+            color: #F0E8E2;
+        }
+
+        html.dark .studio-note-view pre code {
+            background: transparent;
+            padding: 0;
+        }
+
         /* === Global Message Typography Override === */
         .message-bubble {
             font-size: 1.00rem;
@@ -1945,6 +2060,7 @@
         <div id="folderBar" style="padding: 4px 12px 8px; display:flex; gap:6px; flex-wrap:wrap; align-items:center;"></div>
         <div class="chat-list" id="chatList"></div>
         <div class="sidebar-footer">
+            <button class="sidebar-btn" id="studioBtn">🎨 Studio</button>
             <button class="sidebar-btn" id="journalBtn">📓 Journal</button>
             <button class="sidebar-btn" id="darkModeBtn">🌙 Dark Mode</button>
             <button class="sidebar-btn" id="settingsBtn">⚙️ Settings</button>
@@ -2060,6 +2176,26 @@
                 <div style="display:flex; gap:10px; margin-top:8px;">
                     <button id="logoutConfirmBtn" class="doc-edit-reject-btn" style="flex:1; padding:10px; background:rgba(226,170,160,0.15); border-color:var(--danger); color:var(--danger); font-weight:600;">Sign Out</button>
                     <button id="logoutCancelBtn" class="doc-edit-accept-btn" style="padding:10px 18px;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Studio Unsaved Changes Modal -->
+    <div class="modal-overlay" id="studioUnsavedModal">
+        <div class="modal" style="max-width:420px;">
+            <div class="modal-header">
+                <h3>Unsaved changes</h3>
+                <button class="modal-close" id="studioUnsavedClose">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="color:var(--text-muted); font-size:14px; margin-bottom:16px; line-height:1.6;">
+                    This note has changes that haven't been saved yet. What would you like to do?
+                </p>
+                <div style="display:flex; gap:10px; margin-top:8px; flex-wrap:wrap;">
+                    <button id="studioUnsavedSaveBtn" class="doc-edit-accept-btn" style="flex:1; padding:10px; min-width:80px;">Save</button>
+                    <button id="studioUnsavedDiscardBtn" class="doc-edit-reject-btn" style="flex:1; padding:10px; min-width:80px; background:rgba(226,170,160,0.15); border-color:var(--danger); color:var(--danger); font-weight:600;">Discard</button>
+                    <button id="studioUnsavedCancelBtn" style="padding:10px 16px; background:none; border:1px solid var(--border); border-radius:8px; color:var(--text-secondary); cursor:pointer; font-family:inherit; font-size:14px;">Cancel</button>
                 </div>
             </div>
         </div>
@@ -2308,6 +2444,19 @@
         let telegramMessages = [];     // local cache, not saved to blob
         let viewingWorkshop = false;   // true when Workshop Sessions view is open
         let workshopSessions = [];     // local cache of workshop_sessions rows
+        let viewingStudio = false;     // true when Studio view is open
+        let studioNotes = [];          // local cache of studio_notes rows, not saved to blob
+        let studioMode = 'list';       // 'list' | 'view' | 'edit'
+        let studioActiveNoteId = null; // id of note being viewed/edited; null = list, or a new unsaved note
+        let studioEditSnapshot = null; // { title, content } at edit-start, for dirty checking
+        let studioPendingNav = null;   // callback to run once an unsaved-changes prompt is resolved
+
+        window.addEventListener('beforeunload', function(e) {
+            if (studioHasUnsavedChanges()) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
 
         async function init() {
             loadState();
@@ -2346,6 +2495,11 @@
             document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar);
             document.getElementById('sidebarNewChat').addEventListener('click', newChat);
             document.getElementById('newChatBtn').addEventListener('click', newChat);
+            document.getElementById('studioBtn').addEventListener('click', openStudioView);
+            document.getElementById('studioUnsavedClose').addEventListener('click', closeStudioUnsavedModal);
+            document.getElementById('studioUnsavedCancelBtn').addEventListener('click', closeStudioUnsavedModal);
+            document.getElementById('studioUnsavedDiscardBtn').addEventListener('click', studioUnsavedDiscard);
+            document.getElementById('studioUnsavedSaveBtn').addEventListener('click', studioUnsavedSave);
             document.getElementById('journalBtn').addEventListener('click', openJournal);
             document.getElementById('settingsBtn').addEventListener('click', openSettings);
             document.getElementById('settingsClose').addEventListener('click', closeSettings);
@@ -2537,7 +2691,11 @@
             setInterval(async () => {
                 if (!currentUser || appState.isStreaming || appState.isSummarising) return;
                 await syncFromCloud();
-                if (viewingTelegram) {
+                if (viewingStudio) {
+                    // Never touch #chatArea while a note may be open for editing —
+                    // just refresh the list cache if that's what's showing.
+                    if (studioMode === 'list') await studioFetchNotes();
+                } else if (viewingTelegram) {
                     await fetchAndRenderTelegramMessages();
                 } else if (viewingWorkshop) {
                     await fetchAndRenderWorkshopSessions();
@@ -2554,7 +2712,9 @@
             document.addEventListener('visibilitychange', async () => {
                 if (document.visibilityState === 'visible' && currentUser && !appState.isStreaming && !appState.isSummarising) {
                     await syncFromCloud();
-                    if (viewingTelegram) {
+                    if (viewingStudio) {
+                        if (studioMode === 'list') await studioFetchNotes();
+                    } else if (viewingTelegram) {
                         await fetchAndRenderTelegramMessages();
                     } else if (viewingWorkshop) {
                         await fetchAndRenderWorkshopSessions();
@@ -2881,6 +3041,7 @@
         // ── CHAT MANAGEMENT ───────────────────────────────────────────────
 
         function newChat() {
+            if (guardStudioNav(() => newChat())) return;
             const chatId = Date.now().toString();
             const now = new Date().toISOString();
             appState.chats.push({
@@ -2899,6 +3060,8 @@
         }
 
         function loadChat(chatId) {
+            if (guardStudioNav(() => loadChat(chatId))) return;
+            if (viewingStudio) closeStudioView();
             if (viewingTelegram) closeTelegramView();
             if (viewingWorkshop) closeWorkshopView();
             appState.activeChatId = chatId;
@@ -3104,6 +3267,8 @@
                         tgItem.className = 'telegram-chat-item' + (viewingTelegram ? ' active' : '');
                         tgItem.innerHTML = '📱 <span class="project-chat-title">Telegram</span>';
                         tgItem.onclick = () => {
+                            if (guardStudioNav(() => tgItem.onclick())) return;
+                            if (viewingStudio) closeStudioView();
                             viewingTelegram = true;
                             appState.activeChatId = null;
                             renderProjectList();
@@ -3120,6 +3285,8 @@
                         wsItem.className = 'telegram-chat-item' + (viewingWorkshop ? ' active' : '');
                         wsItem.innerHTML = '🌙 <span class="project-chat-title">Workshop Sessions</span>';
                         wsItem.onclick = () => {
+                            if (guardStudioNav(() => wsItem.onclick())) return;
+                            if (viewingStudio) closeStudioView();
                             viewingWorkshop = true;
                             appState.activeChatId = null;
                             renderProjectList();
@@ -3319,6 +3486,7 @@
         }
 
         function newProjectChat(projectId) {
+            if (guardStudioNav(() => newProjectChat(projectId))) return;
             const project = (appState.projects || []).find(p => p.id === projectId);
             if (!project) return;
             const chatId = 'chat_' + Date.now();
@@ -3682,6 +3850,7 @@
                 chatArea.appendChild(wrapper);
             });
 
+            wireCodeCopyButtons(chatArea);
             scrollToBottom();
         }
 
@@ -3801,6 +3970,400 @@
                     chatArea.appendChild(card);
                 });
             });
+        }
+
+        // ────────────────────────────────────────────────────────────
+
+        // ── STUDIO VIEW FUNCTIONS ─────────────────────────────────────────
+        // Private notes room. Notes live only in the studio_notes table —
+        // never in the chat_data blob, never in model context/memory/prompts.
+
+        function studioHasUnsavedChanges() {
+            if (studioMode !== 'edit' || !studioEditSnapshot) return false;
+            const titleEl = document.getElementById('studioEditTitle');
+            const contentEl = document.getElementById('studioEditContent');
+            if (!titleEl || !contentEl) return false;
+            return titleEl.value !== studioEditSnapshot.title || contentEl.value !== studioEditSnapshot.content;
+        }
+
+        // Call at the top of any action that would navigate away from Studio.
+        // Returns true (and shows the confirm modal) if navigation should be
+        // blocked pending a Save/Discard/Cancel choice; false if it's safe to proceed.
+        function guardStudioNav(action) {
+            if (studioHasUnsavedChanges()) {
+                studioPendingNav = action;
+                document.getElementById('studioUnsavedModal').classList.add('open');
+                return true;
+            }
+            return false;
+        }
+
+        function closeStudioUnsavedModal() {
+            document.getElementById('studioUnsavedModal').classList.remove('open');
+            studioPendingNav = null;
+        }
+
+        async function studioUnsavedSave() {
+            document.getElementById('studioUnsavedModal').classList.remove('open');
+            const pending = studioPendingNav;
+            studioPendingNav = null;
+            const ok = await studioSaveCurrentNote();
+            if (ok && pending) pending();
+        }
+
+        function studioUnsavedDiscard() {
+            document.getElementById('studioUnsavedModal').classList.remove('open');
+            const pending = studioPendingNav;
+            studioPendingNav = null;
+            // Neutralise the dirty check before re-running the pending nav,
+            // or it would just trip the guard again.
+            studioMode = 'list';
+            studioEditSnapshot = null;
+            if (pending) pending();
+        }
+
+        async function openStudioView() {
+            if (guardStudioNav(openStudioView)) return;
+            if (viewingTelegram) closeTelegramView();
+            if (viewingWorkshop) closeWorkshopView();
+
+            closeSidebar();
+            viewingStudio = true;
+            studioMode = 'list';
+            studioActiveNoteId = null;
+            studioEditSnapshot = null;
+            appState.activeChatId = null;
+
+            const inputArea = document.querySelector('.input-area');
+            if (inputArea) inputArea.style.display = 'none';
+
+            renderChatList();
+            await studioFetchNotes();
+        }
+
+        function closeStudioView() {
+            viewingStudio = false;
+            studioMode = 'list';
+            studioActiveNoteId = null;
+            studioEditSnapshot = null;
+            const inputArea = document.querySelector('.input-area');
+            if (inputArea) inputArea.style.display = '';
+        }
+
+        async function studioFetchNotes() {
+            if (!supabaseClient || !currentUser) {
+                studioNotes = [];
+                studioRenderList();
+                return;
+            }
+            try {
+                const { data, error } = await supabaseClient
+                    .from('studio_notes')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('updated_at', { ascending: false });
+                if (error) throw error;
+                studioNotes = data || [];
+            } catch (e) {
+                console.log('Studio notes fetch:', e.message);
+                studioNotes = [];
+            }
+            studioRenderList();
+        }
+
+        function studioRenderList() {
+            if (!viewingStudio || studioMode !== 'list') return;
+            const chatArea = document.getElementById('chatArea');
+            chatArea.innerHTML = '';
+
+            const header = document.createElement('div');
+            header.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:20px 20px 12px; gap:12px;';
+            const title = document.createElement('h2');
+            title.style.cssText = 'font-size:18px; font-weight:600; color:var(--text-primary);';
+            title.textContent = '🎨 Studio';
+            const newBtn = document.createElement('button');
+            newBtn.textContent = '+ New Note';
+            newBtn.style.cssText = 'padding:8px 14px; border-radius:8px; border:none; background:var(--accent-alt); color:var(--text-primary); font-size:13px; font-family:inherit; font-weight:500; cursor:pointer; white-space:nowrap;';
+            const noBackend = !supabaseClient || !currentUser;
+            if (noBackend) { newBtn.disabled = true; newBtn.style.opacity = '0.5'; newBtn.style.cursor = 'default'; }
+            newBtn.onclick = studioNewNote;
+            header.appendChild(title);
+            header.appendChild(newBtn);
+            chatArea.appendChild(header);
+
+            if (noBackend) {
+                const msg = document.createElement('div');
+                msg.style.cssText = 'text-align:center; color:var(--text-muted); padding:60px 20px; font-size:14px;';
+                msg.textContent = 'Studio needs cloud sync — sign in to use it.';
+                chatArea.appendChild(msg);
+                return;
+            }
+
+            if (studioNotes.length === 0) {
+                const empty = document.createElement('div');
+                empty.style.cssText = 'text-align:center; color:var(--text-muted); padding:60px 20px; font-size:14px;';
+                empty.textContent = 'No notes yet. Start writing whenever you like. 🎨';
+                chatArea.appendChild(empty);
+                return;
+            }
+
+            const list = document.createElement('div');
+            list.style.cssText = 'display:flex; flex-direction:column; gap:10px; padding:0 20px 20px; max-width:900px; margin:0 auto;';
+
+            studioNotes.forEach(note => {
+                const card = document.createElement('div');
+                card.className = 'studio-note-card';
+
+                const titleEl = document.createElement('div');
+                titleEl.className = 'studio-note-title';
+                titleEl.textContent = (note.title && note.title.trim()) ? note.title : 'Untitled note';
+
+                const dateEl = document.createElement('div');
+                dateEl.className = 'studio-note-date';
+                dateEl.textContent = 'Updated ' + formatDate(note.updated_at);
+
+                const previewEl = document.createElement('div');
+                previewEl.className = 'studio-note-preview';
+                previewEl.textContent = (note.content || '').slice(0, 220);
+
+                card.appendChild(titleEl);
+                card.appendChild(dateEl);
+                card.appendChild(previewEl);
+                card.onclick = () => studioOpenNoteView(note.id);
+                list.appendChild(card);
+            });
+
+            chatArea.appendChild(list);
+        }
+
+        function studioNewNote() {
+            if (guardStudioNav(studioNewNote)) return;
+            if (!supabaseClient || !currentUser) return;
+            studioMode = 'edit';
+            studioActiveNoteId = null;
+            studioEditSnapshot = { title: '', content: '' };
+            studioRenderEdit();
+        }
+
+        function studioOpenNoteView(id) {
+            if (guardStudioNav(() => studioOpenNoteView(id))) return;
+            const note = studioNotes.find(n => n.id === id);
+            if (!note) return;
+            studioMode = 'view';
+            studioActiveNoteId = id;
+            studioEditSnapshot = null;
+            studioRenderView(note);
+        }
+
+        function studioRenderView(note) {
+            if (!viewingStudio || studioMode !== 'view') return;
+            const chatArea = document.getElementById('chatArea');
+            chatArea.innerHTML = '';
+
+            const header = document.createElement('div');
+            header.style.cssText = 'padding:16px 20px 0;';
+            const backBtn = document.createElement('button');
+            backBtn.textContent = '← Back';
+            backBtn.style.cssText = 'background:none; border:none; color:var(--text-muted); font-size:13px; cursor:pointer; font-family:inherit; padding:4px 0;';
+            backBtn.onclick = studioBackToList;
+            header.appendChild(backBtn);
+            chatArea.appendChild(header);
+
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'padding:8px 20px 20px; max-width:900px; margin:0 auto;';
+
+            const titleEl = document.createElement('h2');
+            titleEl.style.cssText = 'font-size:20px; font-weight:600; color:var(--text-primary); margin-bottom:6px; word-break:break-word;';
+            titleEl.textContent = (note.title && note.title.trim()) ? note.title : 'Untitled note';
+            wrap.appendChild(titleEl);
+
+            const dateEl = document.createElement('div');
+            dateEl.style.cssText = 'font-size:12px; color:var(--text-muted); margin-bottom:18px;';
+            dateEl.textContent = 'Updated ' + formatDate(note.updated_at);
+            wrap.appendChild(dateEl);
+
+            const body = document.createElement('div');
+            body.className = 'studio-note-view';
+            body.style.cssText = 'font-size:15px; line-height:1.7; color:var(--text-primary); margin-bottom:24px; overflow-wrap:break-word; word-break:break-word;';
+            body.innerHTML = note.content ? formatMessage(note.content) : '<span style="color:var(--text-muted); font-style:italic;">Empty note</span>';
+            wrap.appendChild(body);
+
+            const actions = document.createElement('div');
+            actions.style.cssText = 'display:flex; gap:10px;';
+            const editBtn = document.createElement('button');
+            editBtn.textContent = 'Edit';
+            editBtn.className = 'doc-edit-accept-btn';
+            editBtn.style.cssText = 'padding:9px 18px;';
+            editBtn.onclick = () => studioEditNote(note.id);
+            const copyBtn = document.createElement('button');
+            copyBtn.textContent = 'Copy';
+            copyBtn.style.cssText = 'padding:9px 18px; background:none; border:1px solid var(--border); border-radius:8px; color:var(--text-secondary); cursor:pointer; font-family:inherit; font-size:14px; font-weight:500;';
+            copyBtn.onclick = () => studioCopyNoteContent(note.content || '');
+            const delBtn = document.createElement('button');
+            delBtn.textContent = 'Delete';
+            delBtn.className = 'doc-edit-reject-btn';
+            delBtn.style.cssText = 'padding:9px 18px; background:rgba(226,170,160,0.15); border-color:var(--danger); color:var(--danger); font-weight:600;';
+            delBtn.onclick = () => studioDeleteNote(note.id);
+            actions.appendChild(editBtn);
+            actions.appendChild(copyBtn);
+            actions.appendChild(delBtn);
+            wrap.appendChild(actions);
+
+            chatArea.appendChild(wrap);
+            wireCodeCopyButtons(wrap);
+        }
+
+        async function studioCopyNoteContent(content) {
+            try {
+                await navigator.clipboard.writeText(content);
+                showToast('Note copied to clipboard');
+            } catch (e) {
+                console.error('Studio copy error:', e);
+                showToast('Failed to copy note', true);
+            }
+        }
+
+        function studioEditNote(id) {
+            if (guardStudioNav(() => studioEditNote(id))) return;
+            const note = studioNotes.find(n => n.id === id);
+            if (!note) return;
+            studioMode = 'edit';
+            studioActiveNoteId = id;
+            studioEditSnapshot = { title: note.title || '', content: note.content || '' };
+            studioRenderEdit();
+        }
+
+        function studioRenderEdit() {
+            if (!viewingStudio || studioMode !== 'edit') return;
+            const chatArea = document.getElementById('chatArea');
+            chatArea.innerHTML = '';
+
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'padding:16px 20px 20px; max-width:900px; margin:0 auto; display:flex; flex-direction:column; gap:12px;';
+
+            const titleInput = document.createElement('input');
+            titleInput.type = 'text';
+            titleInput.id = 'studioEditTitle';
+            titleInput.placeholder = 'Title';
+            titleInput.value = studioEditSnapshot.title;
+            titleInput.style.cssText = 'width:100%; padding:12px 14px; background:var(--bg-tertiary); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); font-size:16px; font-weight:600; font-family:inherit; outline:none;';
+
+            const contentArea = document.createElement('textarea');
+            contentArea.id = 'studioEditContent';
+            contentArea.placeholder = 'Write here...';
+            contentArea.value = studioEditSnapshot.content;
+            contentArea.style.cssText = 'width:100%; min-height:400px; padding:14px; background:var(--bg-tertiary); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); font-size:15px; line-height:1.6; font-family:inherit; outline:none; resize:vertical;';
+
+            const actions = document.createElement('div');
+            actions.style.cssText = 'display:flex; gap:10px;';
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = 'Save';
+            saveBtn.className = 'doc-edit-accept-btn';
+            saveBtn.style.cssText = 'padding:9px 18px;';
+            saveBtn.onclick = () => studioSaveCurrentNote();
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.style.cssText = 'padding:9px 18px; background:none; border:1px solid var(--border); border-radius:8px; color:var(--text-secondary); cursor:pointer; font-family:inherit; font-size:14px;';
+            cancelBtn.onclick = () => {
+                if (guardStudioNav(studioCancelEdit)) return;
+                studioCancelEdit();
+            };
+            actions.appendChild(saveBtn);
+            actions.appendChild(cancelBtn);
+
+            wrap.appendChild(titleInput);
+            wrap.appendChild(contentArea);
+            wrap.appendChild(actions);
+            chatArea.appendChild(wrap);
+            titleInput.focus();
+        }
+
+        function studioCancelEdit() {
+            studioEditSnapshot = null;
+            if (studioActiveNoteId) {
+                const note = studioNotes.find(n => n.id === studioActiveNoteId);
+                if (note) {
+                    studioMode = 'view';
+                    studioRenderView(note);
+                    return;
+                }
+            }
+            studioMode = 'list';
+            studioActiveNoteId = null;
+            studioRenderList();
+        }
+
+        function studioBackToList() {
+            if (guardStudioNav(studioBackToList)) return;
+            studioMode = 'list';
+            studioActiveNoteId = null;
+            studioEditSnapshot = null;
+            studioRenderList();
+            studioFetchNotes();
+        }
+
+        async function studioSaveCurrentNote() {
+            if (!supabaseClient || !currentUser) { showToast('Studio needs cloud sync', true); return false; }
+            const titleEl = document.getElementById('studioEditTitle');
+            const contentEl = document.getElementById('studioEditContent');
+            if (!titleEl || !contentEl) return false;
+            const title = titleEl.value.trim();
+            const content = contentEl.value;
+            const now = new Date().toISOString();
+
+            try {
+                if (studioActiveNoteId) {
+                    const { error } = await supabaseClient
+                        .from('studio_notes')
+                        .update({ title, content, updated_at: now })
+                        .eq('id', studioActiveNoteId)
+                        .eq('user_id', currentUser.id);
+                    if (error) throw error;
+                    const existing = studioNotes.find(n => n.id === studioActiveNoteId);
+                    if (existing) { existing.title = title; existing.content = content; existing.updated_at = now; }
+                } else {
+                    const { data, error } = await supabaseClient
+                        .from('studio_notes')
+                        .insert({ user_id: currentUser.id, title, content, created_at: now, updated_at: now })
+                        .select()
+                        .single();
+                    if (error) throw error;
+                    studioActiveNoteId = data.id;
+                    studioNotes.unshift(data);
+                }
+                studioNotes.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+                studioEditSnapshot = null;
+                studioMode = 'view';
+                showToast('Note saved');
+                const saved = studioNotes.find(n => n.id === studioActiveNoteId);
+                if (saved) studioRenderView(saved);
+                return true;
+            } catch (e) {
+                console.error('Studio save error:', e);
+                showToast('Failed to save note', true);
+                return false;
+            }
+        }
+
+        async function studioDeleteNote(id) {
+            if (!confirm('Delete this note? This cannot be undone.')) return;
+            if (!supabaseClient || !currentUser) return;
+            try {
+                const { error } = await supabaseClient
+                    .from('studio_notes')
+                    .delete()
+                    .eq('id', id)
+                    .eq('user_id', currentUser.id);
+                if (error) throw error;
+                studioNotes = studioNotes.filter(n => n.id !== id);
+                showToast('Note deleted');
+                studioMode = 'list';
+                studioActiveNoteId = null;
+                studioRenderList();
+            } catch (e) {
+                console.error('Studio delete error:', e);
+                showToast('Failed to delete note', true);
+            }
         }
 
         // ────────────────────────────────────────────────────────────
@@ -4148,6 +4711,7 @@
             });
             
             chatArea.appendChild(wrapper);
+            wireCodeCopyButtons(wrapper);
             if (isNearBottom()) scrollToBottom();
         }
 
@@ -4618,8 +5182,8 @@
             // Block quotes
             text = text.replace(/^&gt; (.*?)$/gm, '<blockquote>$1</blockquote>');
             
-            // Code blocks (before inline code)
-            text = text.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+            // Code blocks (before inline code) — wrapped so a copy button can be attached
+            text = text.replace(/```([\s\S]*?)```/g, '<div class="code-block-wrapper"><button class="code-copy-btn" type="button" title="Copy code">Copy</button><pre><code>$1</code></pre></div>');
             
             // Process lists line by line
             const lines = text.split('\n');
@@ -4698,8 +5262,8 @@
             text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
             
             // Clean up newlines around HTML blocks (remove extra spacing)
-            text = text.replace(/\n+(<\/?(h[123]|ol|ul|li|blockquote|hr|pre)>)/g, '$1');
-            text = text.replace(/(<\/?(h[123]|ol|ul|li|blockquote|hr|pre)>)\n+/g, '$1');
+            text = text.replace(/\n+(<\/?(h[123]|ol|ul|li|blockquote|hr|pre|div)>)/g, '$1');
+            text = text.replace(/(<\/?(h[123]|ol|ul|li|blockquote|hr|pre|div)>)\n+/g, '$1');
             
             // Convert remaining double newlines to paragraph breaks
             text = text.replace(/\n\n+/g, '<br><br>');
@@ -4708,6 +5272,29 @@
             text = text.replace(/([^>])\n([^<])/g, '$1<br>$2');
             
             return text;
+        }
+
+        // Attaches click handlers to any .code-copy-btn produced by formatMessage()
+        // within the given container. Safe to call repeatedly on re-renders.
+        function wireCodeCopyButtons(container) {
+            if (!container) return;
+            container.querySelectorAll('.code-copy-btn').forEach(btn => {
+                if (btn.dataset.wired) return;
+                btn.dataset.wired = '1';
+                btn.addEventListener('click', async () => {
+                    const codeEl = btn.parentElement.querySelector('code');
+                    if (!codeEl) return;
+                    try {
+                        await navigator.clipboard.writeText(codeEl.textContent);
+                        const original = btn.textContent;
+                        btn.textContent = 'Copied!';
+                        setTimeout(() => { btn.textContent = original; }, 1500);
+                    } catch (e) {
+                        console.error('Code copy error:', e);
+                        showToast('Failed to copy code', true);
+                    }
+                });
+            });
         }
 
         function scrollToBottom() {
