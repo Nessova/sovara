@@ -6326,10 +6326,10 @@ ${braveText || 'No additional context available from search snippets.'}
                     }
                 }
 
-                // After streaming: save thinking to message if present
+                // After streaming: inject thinking into the DOM only — never persist to
+                // msg.thinking or saveState(). Thinking evaporates on reload; blob stays lean.
                 if (fullThinking) {
-                    chat.messages[chat.messages.length - 1].thinking = fullThinking;
-                    renderMessages();
+                    injectThinkingBlock(fullThinking);
                 }
 
                 // Extract and save AI memories from response
@@ -6556,6 +6556,35 @@ ${braveText || 'No additional context available from search snippets.'}
             if (abortController) {
                 abortController.abort();
             }
+        }
+
+        // Injects a thinking <details> block into the last assistant message element
+        // in the DOM without touching the message object or calling renderMessages().
+        // Thinking is session-only: visible until reload, never written to the blob.
+        function injectThinkingBlock(thinkingText) {
+            if (!thinkingText) return;
+            const msgEls = document.querySelectorAll('.message.assistant');
+            const lastEl = msgEls[msgEls.length - 1];
+            if (!lastEl) return;
+
+            // Don't double-inject if somehow called twice
+            if (lastEl.querySelector('.thinking-block')) return;
+
+            const label = lastEl.querySelector('.message-label');
+            if (!label) return;
+
+            const thinkingDetails = document.createElement('details');
+            thinkingDetails.className = 'thinking-block';
+            const summary = document.createElement('summary');
+            summary.innerHTML = '🧠 Reasoning';
+            const body = document.createElement('div');
+            body.className = 'thinking-block-body';
+            body.textContent = thinkingText;
+            thinkingDetails.appendChild(summary);
+            thinkingDetails.appendChild(body);
+
+            // Insert between label and bubble, matching createMessageElement's structure
+            label.insertAdjacentElement('afterend', thinkingDetails);
         }
 
         // ── ATTACHMENTS ───────────────────────────────────────────────────
