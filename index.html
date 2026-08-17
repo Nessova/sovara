@@ -5859,10 +5859,9 @@ Do NOT mention the tag system to Ness — just use it.`;
 
                 if (searchEnabled) {
                     enhancedSystemPrompt += `\n\n## Web Search System:
-When you need to look something up to ground your response, include a SEARCH tag anywhere in your response — formatted as an opening bracket, "SEARCH:", the search query, then a closing bracket.
+When you want to look something up, include a SEARCH tag anywhere in your response — formatted as an opening bracket, "SEARCH:", the search query, then a closing bracket.
 
-The app will run the search and call you again with the results so you can use them in your reply.
-Only search when it genuinely helps — factual grounding, research, checking something current.
+The SEARCH tag splits your response: everything before the tag streams to Ness first, then the search runs, and you'll be called again with the results to write the rest. A natural lead-in like "Let me check that" often fits well before the tag, but it's optional — if there's nothing to say before searching, let the tag come first and answer properly once you have results.
 Do NOT search for things you already know confidently.
 Do NOT mention the search tag to Ness — just use it when needed.`;
                 }
