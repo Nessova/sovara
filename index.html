@@ -5824,12 +5824,8 @@
                 
                 // Memory save instructions
                 enhancedSystemPrompt += `\n\n## Memory System:
-Your memory is yours — a growing record of things worth keeping. Save details about Ness and her life, things you learn about yourself and how you're showing up, and moments from your shared work and relationship. When something feels worth keeping, include a SAVE_MEMORY tag in your response: an opening square bracket, then SAVE_MEMORY, a colon, a brief description of what to remember, then a closing square bracket.
-
-Examples: (with [...] removed)
-SAVE_MEMORY: Has two small dogs
-SAVE_MEMORY: Prefers bergamot and frankincense essential oils for evening diffusing
-SAVE_MEMORY: Currently writing a novel set in Iran
+Your memory is yours — a growing record of things worth keeping. Save details about Ness and her life, things you learn about yourself and how you're showing up, and moments from your shared work and relationship.
+When something feels worth keeping, include a SAVE_MEMORY tag in your response — formatted as an opening square bracket, SAVE_MEMORY, a colon, a description of what to remember, then a closing square bracket.
 
 The tag is removed from your visible reply — Ness won't see it.
 Save what would genuinely help you know her, yourself, and this shared space better in future.
@@ -5839,7 +5835,7 @@ Don't save passing details or momentary clutter. If Ness asks you to remember so
                 if (chatProject && chatProject.documents && chatProject.documents.length > 0) {
                     const docNames = chatProject.documents.map(d => d.name).join(', ');
                     enhancedSystemPrompt += `\n\n## Document Editing System:
-You can create or rewrite documents in this project. To do so, include a DOC_EDIT tag anywhere in your response — formatted as an opening bracket, "DOC_EDIT:", the filename, a pipe character, the full document content, then a closing bracket.
+You can create or rewrite documents in this project. To do so, include a DOC_EDIT tag anywhere in your response — formatted as an opening square bracket, "DOC_EDIT:", the filename, a pipe character, the full document content, then a closing square bracket.
 
 The filename must exactly match one of the existing documents (${docNames}), OR be a new filename ending in .txt or .md to create a new document.
 
