@@ -5902,12 +5902,12 @@ Do NOT mention the search tag to Ness — just use it when needed.`;
                             .select('content, created_at')
                             .eq('user_id', currentUser.id)
                             .order('created_at', { ascending: false })
-                            .limit(5);
+                            .limit(10);
                         if (journalData && journalData.length > 0) {
                             enhancedSystemPrompt += '\n\n## Your Recent Journal Entries:\n';
                             [...journalData].reverse().forEach(entry => {
                                 const d = new Date(entry.created_at);
-                                const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+                                const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                                 enhancedSystemPrompt += `\n[${label}]\n${entry.content}\n`;
                             });
                         }
