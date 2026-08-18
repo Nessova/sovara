@@ -6232,7 +6232,7 @@ ${braveText || 'No additional context available from search snippets.'}
                     // before writing any reply. "low" leaves it doing real but
                     // brief reasoning, with max_tokens bumped so there's still
                     // room left for the actual response afterwards.
-                    requestBody.reasoning = { effort: 'medium' };
+                    requestBody.reasoning = { effort: 'low' };
                 }
 
                 if (appState.selectedModel.includes('deepseek')) {
