@@ -2291,7 +2291,7 @@
                             Ben can search the web in main chats
                         </label>
                     </div>
-                    <div class="hint">When enabled, Ben can emit a [SEARCH:] tag to look things up mid-response. Applies to non-project chats only — projects have their own search toggle.</div>
+                    <div class="hint">When enabled, Ben can emit a [[SEARCH:]] tag to look things up mid-response. Applies to non-project chats only — projects have their own search toggle.</div>
                 </div>
 
                 <div class="form-group">
@@ -2363,7 +2363,7 @@
                     <div style="display:flex; flex-direction:column; gap:10px; padding:4px 0;">
                         <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:14px; font-weight:400; color:var(--text-primary);">
                             <input type="checkbox" id="projectAllowBenSearchToggle" style="width:18px; height:18px; cursor:pointer;">
-                            Ben can search the web (<code style="font-size:12px;">[SEARCH:]</code> tag)
+                            Ben can search the web (<code style="font-size:12px;">[[SEARCH:]]</code> tag)
                         </label>
                         <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-size:14px; font-weight:400; color:var(--text-primary);">
                             <input type="checkbox" id="projectWorkshopToggle" style="width:18px; height:18px; cursor:pointer;">
@@ -5656,7 +5656,7 @@
             return searchEnabled;
         }
 
-        // Follow-up streaming call after a [SEARCH:] — fires a clean request where the
+        // Follow-up streaming call after a [[SEARCH:]] — fires a clean request where the
         // search results arrive as a synthetic user message so the conversation ends on a
         // user turn (required by Anthropic/Bedrock/Google providers via OpenRouter).
         async function streamResponseWithSearchResults(chat, searchQuery, searchResultsText) {
@@ -5829,7 +5829,7 @@
                 // Memory save instructions
                 enhancedSystemPrompt += `\n\n## Memory System:
 Your memory is yours — a growing record of things worth keeping. Save details about Ness and her life, things you learn about yourself and how you're showing up, and moments from your shared work and relationship.
-When something feels worth keeping, include a SAVE_MEMORY tag in your response — formatted as an opening square bracket, SAVE_MEMORY, a colon, a description of what to remember, then a closing square bracket.
+When something feels worth keeping, include a SAVE_MEMORY tag in your response — formatted as two opening square brackets, SAVE_MEMORY, a colon, a description of what to remember, then two closing square brackets.
 
 The tag is removed from your visible reply — Ness won't see it.
 Save what would genuinely help you know her, yourself, and this shared space better in future.
@@ -5839,7 +5839,7 @@ Don't save passing details or momentary clutter. If Ness asks you to remember so
                 if (chatProject && chatProject.documents && chatProject.documents.length > 0) {
                     const docNames = chatProject.documents.map(d => d.name).join(', ');
                     enhancedSystemPrompt += `\n\n## Document Editing System:
-You can create or rewrite documents in this project. To do so, include a DOC_EDIT tag anywhere in your response — formatted as an opening square bracket, "DOC_EDIT:", the filename, a pipe character, the full document content, then a closing square bracket.
+You can create or rewrite documents in this project. To do so, include a DOC_EDIT tag anywhere in your response — formatted as two opening square brackets, "DOC_EDIT:", the filename, a pipe character, the full document content, then two closing square brackets.
 
 The filename must exactly match one of the existing documents (${docNames}), OR be a new filename ending in .txt or .md to create a new document.
 
@@ -5858,7 +5858,7 @@ Do NOT mention the tag system to Ness — just use it.`;
 
                 if (searchEnabled) {
                     enhancedSystemPrompt += `\n\n## Web Search System:
-When you want to look something up, include a SEARCH tag anywhere in your response — formatted as an opening bracket, "SEARCH:", the search query, then a closing bracket.
+When you want to look something up, include a SEARCH tag anywhere in your response — formatted as two opening brackets, "SEARCH:", the search query, then two closing brackets.
 
 The SEARCH tag splits your response: everything before the tag streams to Ness first, then the search runs, and you'll be called again with the results to write the rest. A natural lead-in like "Let me check that" often fits well before the tag, but it's optional — if there's nothing to say before searching, let the tag come first and answer properly once you have results.
 Do NOT search for things you already know confidently.
@@ -6232,7 +6232,7 @@ ${braveText || 'No additional context available from search snippets.'}
                     // before writing any reply. "low" leaves it doing real but
                     // brief reasoning, with max_tokens bumped so there's still
                     // room left for the actual response afterwards.
-                    requestBody.reasoning = { effort: 'medium' };
+                    requestBody.reasoning = { effort: 'low' };
                 }
 
                 if (appState.selectedModel.includes('deepseek')) {
@@ -6337,7 +6337,7 @@ ${braveText || 'No additional context available from search snippets.'}
                 }
 
                 // Extract and save AI memories from response
-                const memoryRegex = /\[SAVE_MEMORY:\s*(.*?)\]/gi;
+                const memoryRegex = /\[\[SAVE_MEMORY:\s*(.*?)\]\]/gi;
                 let memoryMatch;
                 let memoriesFound = 0;
                 while ((memoryMatch = memoryRegex.exec(fullResponse)) !== null) {
@@ -6360,7 +6360,7 @@ ${braveText || 'No additional context available from search snippets.'}
                 }
                 
                 // Strip memory tags from the displayed message
-                const cleanedResponse = fullResponse.replace(/\[SAVE_MEMORY:\s*.*?\]/gi, '').trim();
+                const cleanedResponse = fullResponse.replace(/\[\[SAVE_MEMORY:\s*.*?\]\]/gi, '').trim();
                 if (cleanedResponse !== fullResponse) {
                     chat.messages[chat.messages.length - 1].content = cleanedResponse;
                     renderMessages();
@@ -6369,7 +6369,7 @@ ${braveText || 'No additional context available from search snippets.'}
                 // Extract and handle document edit proposals from response
                 // Run on the already-memory-stripped content
                 const currentContent = chat.messages[chat.messages.length - 1].content;
-                const docEditRegex = /\[DOC_EDIT:\s*([^\|\]]+?)\s*\|([\s\S]*?)\]/g;
+                const docEditRegex = /\[\[DOC_EDIT:\s*([^\|\]]+?)\s*\|([\s\S]*?)\]\]/g;
                 const pendingDocEdits = [];
                 let docEditMatch;
                 while ((docEditMatch = docEditRegex.exec(currentContent)) !== null) {
@@ -6386,7 +6386,7 @@ ${braveText || 'No additional context available from search snippets.'}
                 if (pendingDocEdits.length > 0) {
                     // Strip DOC_EDIT tags from visible message
                     const strippedContent = currentContent
-                        .replace(/\[DOC_EDIT:\s*[^\|\]]+?\s*\|[\s\S]*?\]/g, '')
+                        .replace(/\[\[DOC_EDIT:\s*[^\|\]]+?\s*\|[\s\S]*?\]\]/g, '')
                         .trim();
                     chat.messages[chat.messages.length - 1].content = strippedContent;
                     // Store proposals on the message — persisted in state so they survive re-renders
@@ -6401,22 +6401,22 @@ ${braveText || 'No additional context available from search snippets.'}
                     renderMessages();
                 }
 
-                // Detect [SEARCH: query] tag — two independent gates, no bleed:
+                // Detect [[SEARCH: query]] tag — two independent gates, no bleed:
                 // non-project chats use globalBenSearch; project chats use allowBenSearch only
                 const searchEnabledForChat = chatProject
                     ? chatProject.allowBenSearch === true
                     : appState.globalBenSearch === true;
 
                 if (searchEnabledForChat) {
-                    const searchTagMatch = chat.messages[chat.messages.length - 1].content.match(/\[SEARCH:\s*([^\]]+)\]/i);
+                    const searchTagMatch = chat.messages[chat.messages.length - 1].content.match(/\[\[SEARCH:\s*([^\]]+)\]\]/i);
                     if (searchTagMatch) {
                         const searchQuery = searchTagMatch[1].trim();
-                        console.log('🔍 Ben triggered [SEARCH:]:', searchQuery);
+                        console.log('🔍 Ben triggered [[SEARCH:]]:', searchQuery);
 
                         // Strip the tag from Ben's visible message
                         chat.messages[chat.messages.length - 1].content =
                             chat.messages[chat.messages.length - 1].content
-                                .replace(/\[SEARCH:\s*[^\]]+\]/gi, '')
+                                .replace(/\[\[SEARCH:\s*[^\]]+\]\]/gi, '')
                                 .trim();
                         renderMessages();
                         saveState();
@@ -6461,8 +6461,8 @@ ${braveText || 'No additional context available from search snippets.'}
                     }
                 }
 
-                // Detect [IMAGE_GEN: prompt] tag and generate image via SeedDream
-                const imageGenMatch = chat.messages[chat.messages.length - 1].content.match(/\[IMAGE_GEN:\s*([\s\S]*?)\]/i);
+                // Detect [[IMAGE_GEN: prompt]] tag and generate image via SeedDream
+                const imageGenMatch = chat.messages[chat.messages.length - 1].content.match(/\[\[IMAGE_GEN:\s*([\s\S]*?)\]\]/i);
                 if (imageGenMatch) {
                     const imagePrompt = imageGenMatch[1].trim();
                     console.log('🎨 IMAGE_GEN detected:', imagePrompt);
@@ -6470,7 +6470,7 @@ ${braveText || 'No additional context available from search snippets.'}
                     // Strip the tag from visible message
                     chat.messages[chat.messages.length - 1].content =
                         chat.messages[chat.messages.length - 1].content
-                            .replace(/\[IMAGE_GEN:\s*[\s\S]*?\]/gi, '')
+                            .replace(/\[\[IMAGE_GEN:\s*[\s\S]*?\]\]/gi, '')
                             .trim();
                     renderMessages();
 
