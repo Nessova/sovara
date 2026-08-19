@@ -5713,7 +5713,7 @@
                 };
 
                 if (appState.selectedModel.includes('deepseek')) {
-                    requestBody.provider = { only: ["DeepSeek"], allow_fallbacks: false };
+                    requestBody.provider = { only: ["DeepSeek"], allow_fallbacks: true };
                 }
 
                 const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -6239,7 +6239,7 @@ ${braveText || 'No additional context available from search snippets.'}
                 }
 
                 if (appState.selectedModel.includes('deepseek')) {
-                    requestBody.provider = { only: ["DeepSeek"], allow_fallbacks: false };
+                    requestBody.provider = { only: ["DeepSeek"], allow_fallbacks: true };
                 }
 
                 const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
