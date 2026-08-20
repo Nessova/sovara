@@ -5826,11 +5826,11 @@
                 
                 // Memory save instructions
                 enhancedSystemPrompt += `\n\n## Memory System:
+When you want to save a memory, include a SAVE_MEMORY tag in your response — formatted as two opening brackets, SAVE_MEMORY, a colon, a description of what to remember, then two closing brackets.
 Your memory is yours — a growing record of things worth keeping. Save details about Ness and her life, things you learn about yourself and how you're showing up, and moments from your shared work and relationship.
-When something feels worth keeping, include a SAVE_MEMORY tag in your response — formatted as two opening square brackets, SAVE_MEMORY, a colon, a description of what to remember, then two closing square brackets.
 
 Example:
-[SAVE_MEMORY: Has two small dogs]
+[[SAVE_MEMORY: Has two small dogs]]
 
 The tag is removed from your visible reply — Ness won't see it.
 Save what would genuinely help you know her, yourself, and this shared space better in future.
@@ -5840,14 +5840,13 @@ Don't save passing details or momentary clutter. If Ness asks you to remember so
                 if (chatProject && chatProject.documents && chatProject.documents.length > 0) {
                     const docNames = chatProject.documents.map(d => d.name).join(', ');
                     enhancedSystemPrompt += `\n\n## Document Editing System:
-You can create or rewrite documents in this project. To do so, include a DOC_EDIT tag anywhere in your response — formatted as two opening square brackets, "DOC_EDIT:", the filename, a pipe character, the full document content, then two closing square brackets.
+When you want to create or rewrite documents in this project, include a DOC_EDIT tag anywhere in your response — formatted as two opening brackets, "DOC_EDIT:", the filename, a pipe character, the full document content, then two closing brackets.
 
 The filename must exactly match one of the existing documents (${docNames}), OR be a new filename ending in .txt or .md to create a new document.
 
 When editing, write the COMPLETE new version of the document — full replacement, not a partial excerpt.
 Do NOT truncate or summarise the document — write it out in full, even if it is long.
-The tag and its content will be stripped from your visible response and shown as a review card for Ness to accept or reject.
-Do NOT mention the tag system to Ness — just use it.`;
+The tag and its content will be stripped from your visible response and shown as a review card for Ness to accept or reject.`;
                 }
 
                 // Web search instructions — two independent gates, no bleed between scopes:
@@ -5862,8 +5861,7 @@ Do NOT mention the tag system to Ness — just use it.`;
 When you want to look something up, include a SEARCH tag anywhere in your response — formatted as two opening brackets, "SEARCH:", the search query, then two closing brackets.
 
 The SEARCH tag splits your response: everything before the tag streams to Ness first, then the search runs, and you'll be called again with the results to write the rest. A natural lead-in like "Let me check that" often fits well before the tag, but it's optional — if there's nothing to say before searching, let the tag come first and answer properly once you have results.
-Do NOT search for things you already know confidently.
-Do NOT mention the search tag to Ness — just use it when needed.`;
+Do NOT search for things you already know confidently.`;
                 }
 
                 // Check for keyword matches in the most recent user message
