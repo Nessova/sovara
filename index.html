@@ -4664,12 +4664,10 @@
         }
 
         function isReasoningCappedModel(modelId) {
-            // Non-Claude models known to run hidden/thinking reasoning passes
-            // with no UI toggle. Add name fragments here as needed (matches
-            // custom models too, since this checks by substring not exact id).
+            // DeepSeek needs the special reasoning cap.
+            // Other model families should use their normal/default behaviour.
             const id = (modelId || '').toLowerCase();
-            const reasoningFamilies = ['deepseek', 'glm', 'qwen', 'gpt'];
-            return reasoningFamilies.some(name => id.includes(name));
+            return id.includes('deepseek');
         }
 
         function updateThinkingButton() {
@@ -6220,21 +6218,15 @@ ${braveText || 'No additional context available from search snippets.'}
                 const requestBody = {
                     model: appState.selectedModel,
                     messages: apiMessages,
-                    max_tokens: useThinking ? 16000 : (isReasoningCapped ? 6000 : 4096),
+                    max_tokens: useThinking ? 16000 : 6000,
                     stream: true,
                 };
                 if (useThinking) {
                     requestBody.reasoning = { max_tokens: 8000 };
                 } else if (isReasoningCapped) {
-                    // DeepSeek V4 / GLM / Qwen / GPT default to a high reasoning
-                    // effort with no UI toggle to control it. These models use a
-                    // graded effort level (low/medium/high/xhigh), NOT a raw token
-                    // budget — reasoning.max_tokens is an Anthropic-shaped param
-                    // that OpenRouter silently drops for this family, so the model
-                    // reasons uncapped and can eat the entire max_tokens ceiling
-                    // before writing any reply. "low" leaves it doing real but
-                    // brief reasoning, with max_tokens bumped so there's still
-                    // room left for the actual response afterwards.
+                    // DeepSeek uses a graded effort level rather than a raw reasoning
+                    // token budget. Keep its hidden reasoning brief so it does not
+                    // consume the entire response token ceiling before writing.
                     requestBody.reasoning = { effort: 'low' };
                 }
 
