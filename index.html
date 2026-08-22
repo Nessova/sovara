@@ -5663,6 +5663,8 @@
             document.getElementById('stopBtn').classList.add('visible');
             abortController = new AbortController();
 
+            let streamingMsgIndex = null;
+
             try {
                 const chatProject = chat.projectId
                     ? (appState.projects || []).find(p => p.id === chat.projectId)
@@ -5736,12 +5738,12 @@
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let fullResponse = '';
+                let fullThinking = '';
 
                 const typingEl = document.getElementById('typing-indicator');
                 if (typingEl) typingEl.remove();
 
-                chat.messages.push({ role: 'assistant', content: '', timestamp: new Date().toISOString() });
-                renderMessages();
+                streamingMsgIndex = beginAssistantMessage(chat);
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -5756,21 +5758,37 @@
                             const parsed = JSON.parse(data);
                             const delta = parsed.choices[0]?.delta;
                             if (!delta) continue;
+
+                            // Mirror streamResponse: capture thinking/reasoning
+                            // content so DeepSeek's visible thinking still shows.
+                            if (delta.reasoning_details && delta.reasoning_details.length > 0) {
+                                delta.reasoning_details.forEach(rd => {
+                                    if (rd.type === 'reasoning.text' && rd.text) {
+                                        fullThinking += rd.text;
+                                    } else if (rd.type === 'reasoning.summary' && rd.summary) {
+                                        fullThinking += rd.summary;
+                                    }
+                                });
+                                showStreamingThinking(chat, streamingMsgIndex);
+                            }
+
                             if (delta.content) {
                                 fullResponse += delta.content;
                                 chat.messages[chat.messages.length - 1].content = fullResponse;
-                                renderMessages();
-                                scrollToBottom();
+                                appendStreamingToken(chat, streamingMsgIndex, delta.content);
                             }
                         } catch (e) { /* skip malformed chunks */ }
                     }
                 }
 
                 chat.messages[chat.messages.length - 1].content = fullResponse;
+                finishAssistantMessage(chat);
+                if (fullThinking) injectThinkingBlock(fullThinking, streamingMsgIndex, chat);
                 saveState();
                 if (currentUser) syncToCloud();
 
             } catch (e) {
+                if (streamingMsgIndex !== null) finishAssistantMessage(chat);
                 if (e.name !== 'AbortError') {
                     console.error('Search follow-up stream error:', e);
                     showToast('Search follow-up error: ' + e.message, true);
@@ -5788,6 +5806,8 @@
             document.getElementById('stopBtn').classList.add('visible');
 
             abortController = new AbortController();
+
+            let streamingMsgIndex = null;
 
             try {
                 const apiMessages = [];
@@ -6259,12 +6279,7 @@ ${braveText || 'No additional context available from search snippets.'}
                 const typingEl = document.getElementById('typing-indicator');
                 if (typingEl) typingEl.remove();
 
-                chat.messages.push({ 
-                    role: 'assistant', 
-                    content: '',
-                    timestamp: new Date().toISOString()
-                });
-                renderMessages();
+                streamingMsgIndex = beginAssistantMessage(chat);
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -6297,17 +6312,7 @@ ${braveText || 'No additional context available from search snippets.'}
                                         }
                                     });
                                     // Show thinking indicator on the streaming bubble
-                                    const lastMsg = chat.messages[chat.messages.length - 1];
-                                    if (!lastMsg.content) {
-                                        const msgEls = document.querySelectorAll('.message.assistant');
-                                        const lastEl = msgEls[msgEls.length - 1];
-                                        if (lastEl) {
-                                            const bubble = lastEl.querySelector('.message-bubble');
-                                            if (bubble && bubble.innerHTML.indexOf('typing-indicator') === -1) {
-                                                bubble.innerHTML = '<span style="font-size:12px; color:var(--text-muted);">🧠 Thinking...</span>';
-                                            }
-                                        }
-                                    }
+                                    showStreamingThinking(chat, streamingMsgIndex);
                                 }
 
                                 // Capture regular text content
@@ -6316,18 +6321,18 @@ ${braveText || 'No additional context available from search snippets.'}
                                     const lastMsg = chat.messages[chat.messages.length - 1];
                                     lastMsg.content = fullResponse;
                                     delete lastMsg._thinkingInProgress;
-                                    renderMessages();
+                                    appendStreamingToken(chat, streamingMsgIndex, delta.content);
                                 }
                             } catch (e) {}
                         }
                     }
                 }
 
-                // After streaming: inject thinking into the DOM only — never persist to
-                // msg.thinking or saveState(). Thinking evaporates on reload; blob stays lean.
-                if (fullThinking) {
-                    injectThinkingBlock(fullThinking);
-                }
+                // Streaming complete: apply full formatting (markdown, code copy
+                // buttons, images, timestamps) in a single render. Thinking is
+                // injected later, after any tag-stripping renders, and is never
+                // persisted to msg.thinking or saveState().
+                finishAssistantMessage(chat);
 
                 // Extract and save AI memories from response
                 const memoryRegex = /\[\[SAVE_MEMORY:\s*(.*?)\]\]/gi;
@@ -6356,7 +6361,7 @@ ${braveText || 'No additional context available from search snippets.'}
                 const cleanedResponse = fullResponse.replace(/\[\[SAVE_MEMORY:\s*.*?\]\]/gi, '').trim();
                 if (cleanedResponse !== fullResponse) {
                     chat.messages[chat.messages.length - 1].content = cleanedResponse;
-                    renderMessages();
+                    if (isChatActive(chat)) renderMessages();
                 }
 
                 // Extract and handle document edit proposals from response
@@ -6391,7 +6396,7 @@ ${braveText || 'No additional context available from search snippets.'}
                         resolved: false,
                         resolvedAs: null  // 'accepted' | 'rejected'
                     }));
-                    renderMessages();
+                    if (isChatActive(chat)) renderMessages();
                 }
 
                 // Detect [[SEARCH: query]] tag — two independent gates, no bleed:
@@ -6411,17 +6416,19 @@ ${braveText || 'No additional context available from search snippets.'}
                             chat.messages[chat.messages.length - 1].content
                                 .replace(/\[\[SEARCH:\s*[^\]]+\]\]/gi, '')
                                 .trim();
-                        renderMessages();
+                        if (isChatActive(chat)) renderMessages();
                         saveState();
 
                         // Show search indicator as a separate UI element
-                        const chatArea = document.getElementById('chatArea');
-                        const searchSeam = document.createElement('div');
-                        searchSeam.id = 'ben-search-seam';
-                        searchSeam.className = 'typing-indicator';
-                        searchSeam.innerHTML = `<div class="dot"></div><div class="dot"></div><div class="dot"></div><span style="margin-left:10px;">🔍 Ben searched: <em>${searchQuery}</em></span>`;
-                        chatArea.appendChild(searchSeam);
-                        scrollToBottom();
+                        if (isChatActive(chat)) {
+                            const chatArea = document.getElementById('chatArea');
+                            const searchSeam = document.createElement('div');
+                            searchSeam.id = 'ben-search-seam';
+                            searchSeam.className = 'typing-indicator';
+                            searchSeam.innerHTML = `<div class="dot"></div><div class="dot"></div><div class="dot"></div><span style="margin-left:10px;">🔍 Ben searched: <em>${searchQuery}</em></span>`;
+                            chatArea.appendChild(searchSeam);
+                            scrollToBottom();
+                        }
 
                         // Run the search
                         const benSearchResults = await performBraveSearch(searchQuery);
@@ -6437,7 +6444,12 @@ ${braveText || 'No additional context available from search snippets.'}
                                 isSearchSeam: true
                             });
                             saveState();
-                            renderMessages();
+                            if (isChatActive(chat)) renderMessages();
+
+                            // Keep the first message's thinking block visible for
+                            // as long as this view lasts (the follow-up re-render
+                            // rebuilds the list and would otherwise drop it).
+                            if (fullThinking) injectThinkingBlock(fullThinking, streamingMsgIndex, chat);
 
                             // Make a follow-up call directly — don't recurse into streamResponse
                             // because the conversation ends with an assistant message and the API
@@ -6465,16 +6477,18 @@ ${braveText || 'No additional context available from search snippets.'}
                         chat.messages[chat.messages.length - 1].content
                             .replace(/\[\[IMAGE_GEN:\s*[\s\S]*?\]\]/gi, '')
                             .trim();
-                    renderMessages();
+                    if (isChatActive(chat)) renderMessages();
 
                     // Show a generating indicator
-                    const chatArea = document.getElementById('chatArea');
-                    const imgSeam = document.createElement('div');
-                    imgSeam.id = 'image-gen-seam';
-                    imgSeam.className = 'typing-indicator';
-                    imgSeam.innerHTML = `<div class="dot"></div><div class="dot"></div><div class="dot"></div><span style="margin-left:10px;">🎨 Generating image…</span>`;
-                    chatArea.appendChild(imgSeam);
-                    scrollToBottom();
+                    if (isChatActive(chat)) {
+                        const chatArea = document.getElementById('chatArea');
+                        const imgSeam = document.createElement('div');
+                        imgSeam.id = 'image-gen-seam';
+                        imgSeam.className = 'typing-indicator';
+                        imgSeam.innerHTML = `<div class="dot"></div><div class="dot"></div><div class="dot"></div><span style="margin-left:10px;">🎨 Generating image…</span>`;
+                        chatArea.appendChild(imgSeam);
+                        scrollToBottom();
+                    }
 
                     try {
                         const imgRes = await fetch('https://openrouter.ai/api/v1/images', {
@@ -6503,11 +6517,11 @@ ${braveText || 'No additional context available from search snippets.'}
                             const imgId = 'img_' + Date.now();
                             window._generatedImages[imgId] = dataUrl;
                             chat.messages[chat.messages.length - 1].image_ref = imgId;
-                            renderMessages();
+                            if (isChatActive(chat)) renderMessages();
                         } else if (imgUrl) {
                             // URLs are small — safe to store directly
                             chat.messages[chat.messages.length - 1].image_url = imgUrl;
-                            renderMessages();
+                            if (isChatActive(chat)) renderMessages();
                         } else {
                             console.error('Image gen failed:', imgData);
                             showToast('Image generation failed', true);
@@ -6521,9 +6535,17 @@ ${braveText || 'No additional context available from search snippets.'}
                     }
                 }
 
+                // Final render has already happened for every path above;
+                // inject the session-only thinking block now so it survives any
+                // tag-stripping renders. Never write it to msg.thinking.
+                if (fullThinking) injectThinkingBlock(fullThinking, streamingMsgIndex, chat);
+
                 saveState();
                 if (currentUser) syncToCloud();
             } catch (e) {
+                // Stream never completed: still format whatever partial content
+                // was appended, so the bubble matches the in-memory message.
+                if (streamingMsgIndex !== null) finishAssistantMessage(chat);
                 if (e.name === 'AbortError') {
                     showToast('Stopped');
                 } else {
@@ -6555,13 +6577,96 @@ ${braveText || 'No additional context available from search snippets.'}
             }
         }
 
-        // Injects a thinking <details> block into the last assistant message element
-        // in the DOM without touching the message object or calling renderMessages().
-        // Thinking is session-only: visible until reload, never written to the blob.
-        function injectThinkingBlock(thinkingText) {
+        // ── STREAMING RENDER HELPERS ──────────────────────────────────────
+        // During streaming, update ONLY the in-progress bubble. renderMessages()
+        // runs once when the bubble is created and once when the stream completes
+        // (to apply markdown, code copy buttons, images, and timestamps).
+
+        function isChatActive(chat) {
+            if (!chat) return false;
+            const active = getActiveChat();
+            return !!(active && active.id === chat.id);
+        }
+
+        function getStreamingBubbleEl(chat, msgIndex) {
+            if (!isChatActive(chat)) return null;
+            const chatArea = document.getElementById('chatArea');
+            if (!chatArea) return null;
+            const el = chatArea.querySelector('.message.assistant[data-msg-index="' + msgIndex + '"]');
+            return el ? el.querySelector('.message-bubble') : null;
+        }
+
+        function beginAssistantMessage(chat) {
+            chat.messages.push({
+                role: 'assistant',
+                content: '',
+                timestamp: new Date().toISOString()
+            });
+            const msgIndex = chat.messages.length - 1;
+            if (isChatActive(chat)) {
+                renderMessages();
+                const bubble = getStreamingBubbleEl(chat, msgIndex);
+                if (bubble) {
+                    bubble.dataset.streaming = '1';
+                    bubble.style.whiteSpace = 'pre-wrap';
+                    bubble.textContent = '';
+                }
+            }
+            return msgIndex;
+        }
+
+        function appendStreamingToken(chat, msgIndex, token) {
+            if (!token || !isChatActive(chat)) return;
+            const bubble = getStreamingBubbleEl(chat, msgIndex);
+            if (!bubble) return;
+            if (bubble.dataset.streaming !== '1') {
+                // Recovered after an external re-render: re-mark the bubble and
+                // resume from the current message content so tokens keep flowing.
+                bubble.dataset.streaming = '1';
+                bubble.style.whiteSpace = 'pre-wrap';
+                bubble.textContent = chat.messages[msgIndex] ? (chat.messages[msgIndex].content || '') : '';
+            }
+            if (bubble.querySelector('.streaming-thinking')) {
+                bubble.textContent = '';
+            }
+            bubble.appendChild(document.createTextNode(token));
+            if (isNearBottom()) scrollToBottom();
+        }
+
+        function showStreamingThinking(chat, msgIndex) {
+            if (!isChatActive(chat)) return;
+            const bubble = getStreamingBubbleEl(chat, msgIndex);
+            if (!bubble) return;
+            if (bubble.querySelector('.streaming-thinking') || bubble.querySelector('.thinking-block')) return;
+            if (chat.messages[msgIndex] && chat.messages[msgIndex].content) return;
+            const span = document.createElement('span');
+            span.className = 'streaming-thinking';
+            span.style.cssText = 'font-size:12px; color:var(--text-muted);';
+            span.textContent = '🧠 Thinking...';
+            bubble.appendChild(span);
+        }
+
+        function finishAssistantMessage(chat) {
+            if (isChatActive(chat)) renderMessages();
+        }
+
+        // Injects a thinking <details> block into a specific assistant message
+        // element in the DOM without touching the message object or calling
+        // renderMessages(). Thinking is session-only: visible until reload,
+        // never written to the blob.
+        function injectThinkingBlock(thinkingText, msgIndex, chat) {
             if (!thinkingText) return;
-            const msgEls = document.querySelectorAll('.message.assistant');
-            const lastEl = msgEls[msgEls.length - 1];
+            if (chat && !isChatActive(chat)) return;
+
+            const chatArea = document.getElementById('chatArea');
+            let lastEl = null;
+            if (typeof msgIndex === 'number' && chatArea) {
+                lastEl = chatArea.querySelector('.message.assistant[data-msg-index="' + msgIndex + '"]');
+            }
+            if (!lastEl) {
+                const msgEls = document.querySelectorAll('.message.assistant');
+                lastEl = msgEls[msgEls.length - 1];
+            }
             if (!lastEl) return;
 
             // Don't double-inject if somehow called twice
