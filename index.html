@@ -6236,7 +6236,7 @@ ${braveText || 'No additional context available from search snippets.'}
                 const requestBody = {
                     model: appState.selectedModel,
                     messages: apiMessages,
-                    max_tokens: useThinking ? 16000 : 6000,
+                    max_tokens: useThinking ? 16000 : 10000,
                     stream: true,
                 };
                 if (useThinking) {
