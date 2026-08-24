@@ -4677,10 +4677,10 @@
         }
 
         function isReasoningCappedModel(modelId) {
-            // DeepSeek needs the special reasoning cap.
+            // DeepSeek and Qwen3.8 need the special reasoning cap.
             // Other model families should use their normal/default behaviour.
             const id = (modelId || '').toLowerCase();
-            return id.includes('deepseek');
+            return id.includes('deepseek') || id.includes('qwen3.8');
         }
 
         function updateThinkingButton() {
@@ -5725,10 +5725,15 @@
                     stream: true,
                 };
 
+                if (isReasoningCappedModel(appState.selectedModel)) {
+                    // Match the main stream path: keep DeepSeek/Qwen hidden
+                    // reasoning brief so it doesn't consume the max_tokens pot
+                    // before any visible answer.
+                    requestBody.reasoning_effort = 'low';
+                }
+
                 if (appState.selectedModel.includes('deepseek')) {
                     requestBody.provider = { only: ["DeepSeek"], allow_fallbacks: true };
-                    // Match the main stream path: keep DeepSeek's hidden reasoning brief.
-                    requestBody.reasoning_effort = 'low';
                 }
 
                 const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -6257,8 +6262,9 @@ ${braveText || 'No additional context available from search snippets.'}
                 if (useThinking) {
                     requestBody.reasoning = { max_tokens: 8000 };
                 } else if (isReasoningCapped) {
-                    // DeepSeek controls thinking via its native `reasoning_effort`
-                    // (low/high/max). OpenRouter exposes the same key as an
+                    // DeepSeek and Qwen3.8 control thinking via their native
+                    // `reasoning_effort` (DeepSeek: low/high/max; Qwen3.8:
+                    // low/medium/xhigh). OpenRouter exposes the same key as an
                     // OpenAI-style parameter and forwards it to the provider.
                     // Keep hidden reasoning brief so it doesn't consume the
                     // response token ceiling before any visible answer.
