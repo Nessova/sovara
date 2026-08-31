@@ -1896,6 +1896,57 @@
             border-top: 1px solid var(--border-light);
         }
 
+        /* ── Tokens ──────────────────────────────────────────────────────── */
+
+        .tokens-gate-wrap {
+            position: relative;
+            display: inline-flex;
+        }
+
+        .tokens-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: var(--danger);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            min-width: 16px;
+            height: 16px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 4px;
+            line-height: 1;
+            pointer-events: none;
+        }
+
+        .token-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .token-item-content {
+            font-size: 14.5px;
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+
+        .token-item-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+            display: flex;
+            gap: 10px;
+        }
+
         /* ── Studio ──────────────────────────────────────────────────────── */
 
         .studio-note-card {
@@ -2046,6 +2097,10 @@
             <h2>Conversations</h2>
             <div class="sidebar-header-actions">
                 <button class="header-icon-btn" id="logoutBtn" style="display:none" title="Sign Out">🚪</button>
+                <div class="tokens-gate-wrap">
+                    <button class="header-icon-btn" id="tokensBtn" title="Tokens from Ben">⛩️</button>
+                    <span class="tokens-badge" id="tokensBadge" style="display:none"></span>
+                </div>
                 <button class="new-chat-btn" id="sidebarNewChat">+</button>
             </div>
         </div>
@@ -2446,6 +2501,8 @@
         let workshopSessions = [];     // local cache of workshop_sessions rows
         let viewingStudio = false;     // true when Studio view is open
         let studioNotes = [];          // local cache of studio_notes rows, not saved to blob
+        let viewingTokens = false;     // true when Tokens view is open
+        let tokensList = [];           // local cache of tokens rows, not saved to blob
         let studioMode = 'list';       // 'list' | 'view' | 'edit'
         let studioActiveNoteId = null; // id of note being viewed/edited; null = list, or a new unsaved note
         let studioEditSnapshot = null; // { title, content } at edit-start, for dirty checking
@@ -2496,6 +2553,7 @@
             document.getElementById('sidebarNewChat').addEventListener('click', newChat);
             document.getElementById('newChatBtn').addEventListener('click', newChat);
             document.getElementById('studioBtn').addEventListener('click', openStudioView);
+            document.getElementById('tokensBtn').addEventListener('click', openTokensView);
             document.getElementById('studioUnsavedClose').addEventListener('click', closeStudioUnsavedModal);
             document.getElementById('studioUnsavedCancelBtn').addEventListener('click', closeStudioUnsavedModal);
             document.getElementById('studioUnsavedDiscardBtn').addEventListener('click', studioUnsavedDiscard);
@@ -2687,6 +2745,11 @@
                 await checkProactiveMessages();
             }
 
+            // Refresh tokens badge on load
+            if (currentUser) {
+                tokensRefreshBadge();
+            }
+
             // Poll every 5 minutes — reduced from 30s to cut Supabase egress
             setInterval(async () => {
                 if (!currentUser || appState.isStreaming || appState.isSummarising) return;
@@ -2695,6 +2758,8 @@
                     // Never touch #chatArea while a note may be open for editing —
                     // just refresh the list cache if that's what's showing.
                     if (studioMode === 'list') await studioFetchNotes();
+                } else if (viewingTokens) {
+                    await tokensFetchAndRender();
                 } else if (viewingTelegram) {
                     await fetchAndRenderTelegramMessages();
                 } else if (viewingWorkshop) {
@@ -2714,6 +2779,8 @@
                     await syncFromCloud();
                     if (viewingStudio) {
                         if (studioMode === 'list') await studioFetchNotes();
+                    } else if (viewingTokens) {
+                        await tokensFetchAndRender();
                     } else if (viewingTelegram) {
                         await fetchAndRenderTelegramMessages();
                     } else if (viewingWorkshop) {
@@ -3075,6 +3142,7 @@
         function loadChat(chatId) {
             if (guardStudioNav(() => loadChat(chatId))) return;
             if (viewingStudio) closeStudioView();
+            if (viewingTokens) closeTokensView();
             if (viewingTelegram) closeTelegramView();
             if (viewingWorkshop) closeWorkshopView();
             appState.activeChatId = chatId;
@@ -3282,6 +3350,7 @@
                         tgItem.onclick = () => {
                             if (guardStudioNav(() => tgItem.onclick())) return;
                             if (viewingStudio) closeStudioView();
+                            if (viewingTokens) closeTokensView();
                             viewingTelegram = true;
                             appState.activeChatId = null;
                             renderProjectList();
@@ -3300,6 +3369,7 @@
                         wsItem.onclick = () => {
                             if (guardStudioNav(() => wsItem.onclick())) return;
                             if (viewingStudio) closeStudioView();
+                            if (viewingTokens) closeTokensView();
                             viewingWorkshop = true;
                             appState.activeChatId = null;
                             renderProjectList();
@@ -4039,6 +4109,7 @@
             if (guardStudioNav(openStudioView)) return;
             if (viewingTelegram) closeTelegramView();
             if (viewingWorkshop) closeWorkshopView();
+            if (viewingTokens) closeTokensView();
 
             closeSidebar();
             viewingStudio = true;
@@ -4376,6 +4447,164 @@
             } catch (e) {
                 console.error('Studio delete error:', e);
                 showToast('Failed to delete note', true);
+            }
+        }
+
+        // ────────────────────────────────────────────────────────────
+
+        // ── TOKENS VIEW FUNCTIONS ─────────────────────────────────────────
+        // Tokens are small gifts Ben leaves for Ness from any chat context.
+        // They live in the `tokens` table only — never in the chat_data blob,
+        // never in model context/memory/prompts.
+
+        async function openTokensView() {
+            if (guardStudioNav(openTokensView)) return;
+            if (viewingTelegram) closeTelegramView();
+            if (viewingWorkshop) closeWorkshopView();
+            if (viewingStudio) closeStudioView();
+
+            closeSidebar();
+            viewingTokens = true;
+            appState.activeChatId = null;
+
+            const inputArea = document.querySelector('.input-area');
+            if (inputArea) inputArea.style.display = 'none';
+
+            renderChatList();
+            await tokensFetchAndRender();
+        }
+
+        function closeTokensView() {
+            viewingTokens = false;
+            const inputArea = document.querySelector('.input-area');
+            if (inputArea) inputArea.style.display = '';
+        }
+
+        async function tokensFetchAndRender() {
+            if (!supabaseClient || !currentUser) {
+                tokensRenderList([]);
+                return;
+            }
+            try {
+                const { data, error } = await supabaseClient
+                    .from('tokens')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .order('created_at', { ascending: false });
+                if (error) throw error;
+                tokensList = data || [];
+
+                // Mark all as read
+                const unreadIds = tokensList.filter(t => !t.read).map(t => t.id);
+                if (unreadIds.length > 0) {
+                    await supabaseClient
+                        .from('tokens')
+                        .update({ read: true })
+                        .in('id', unreadIds)
+                        .eq('user_id', currentUser.id);
+                    tokensList.forEach(t => { t.read = true; });
+                    tokensRefreshBadge();
+                }
+            } catch (e) {
+                console.log('Tokens fetch:', e.message);
+                tokensList = [];
+            }
+            tokensRenderList(tokensList);
+        }
+
+        function tokensRenderList(tokens) {
+            if (!viewingTokens) return;
+            const chatArea = document.getElementById('chatArea');
+            chatArea.innerHTML = '';
+
+            const header = document.createElement('div');
+            header.style.cssText = 'padding:20px 20px 12px;';
+            const title = document.createElement('h2');
+            title.style.cssText = 'font-size:18px; font-weight:600; color:var(--text-primary);';
+            title.textContent = '⛩️ Tokens';
+            header.appendChild(title);
+            const sub = document.createElement('p');
+            sub.style.cssText = 'font-size:13px; color:var(--text-muted); margin-top:4px;';
+            sub.textContent = 'Small gifts from Ben — left for you to find in your own time.';
+            header.appendChild(sub);
+            chatArea.appendChild(header);
+
+            const noBackend = !supabaseClient || !currentUser;
+            if (noBackend) {
+                const msg = document.createElement('div');
+                msg.style.cssText = 'text-align:center; color:var(--text-muted); padding:60px 20px; font-size:14px;';
+                msg.textContent = 'Tokens needs cloud sync — sign in to use it.';
+                chatArea.appendChild(msg);
+                return;
+            }
+
+            if (tokens.length === 0) {
+                const empty = document.createElement('div');
+                empty.style.cssText = 'text-align:center; color:var(--text-muted); padding:60px 20px; font-size:14px;';
+                empty.textContent = 'No tokens yet. Ben will leave one when the moment is right. 🧧';
+                chatArea.appendChild(empty);
+                return;
+            }
+
+            const list = document.createElement('div');
+            list.style.cssText = 'display:flex; flex-direction:column; gap:10px; padding:0 20px 20px; max-width:900px; margin:0 auto;';
+
+            tokens.forEach(token => {
+                const item = document.createElement('div');
+                item.className = 'token-item';
+
+                const contentEl = document.createElement('div');
+                contentEl.className = 'token-item-content';
+                contentEl.innerHTML = '🧧 ' + formatMessage(token.content || '');
+
+                const meta = document.createElement('div');
+                meta.className = 'token-item-meta';
+
+                const sourceEl = document.createElement('span');
+                sourceEl.textContent = 'from ' + (token.source === 'main' ? 'our chat'
+                    : token.source === 'workshop' ? 'the Workshop'
+                    : token.source);
+
+                const dateEl = document.createElement('span');
+                dateEl.textContent = formatDate(token.created_at);
+
+                meta.appendChild(sourceEl);
+                meta.appendChild(dateEl);
+
+                item.appendChild(contentEl);
+                item.appendChild(meta);
+                list.appendChild(item);
+            });
+
+            chatArea.appendChild(list);
+            wireCodeCopyButtons(chatArea);
+        }
+
+        async function tokensRefreshBadge() {
+            // Update the badge based on unread count from the database
+            if (!supabaseClient || !currentUser) {
+                const badge = document.getElementById('tokensBadge');
+                if (badge) badge.style.display = 'none';
+                return;
+            }
+            try {
+                const { data, error } = await supabaseClient
+                    .from('tokens')
+                    .select('id')
+                    .eq('user_id', currentUser.id)
+                    .eq('read', false);
+                if (error) throw error;
+                const count = (data || []).length;
+                const badge = document.getElementById('tokensBadge');
+                if (!badge) return;
+                if (count > 0) {
+                    badge.textContent = count > 9 ? '9+' : count;
+                    badge.style.display = 'flex';
+                } else {
+                    badge.style.display = 'none';
+                }
+            } catch (e) {
+                console.log('Tokens badge refresh:', e.message);
             }
         }
 
@@ -5876,6 +6105,16 @@ The tag is removed from your visible reply — Ness won't see it.
 Save what would genuinely help you know her, yourself, and this shared space better in future.
 Don't save passing details or momentary clutter. If Ness asks you to remember something, always save it.`;
                 
+                // Token gift instructions — available in all chat contexts
+                enhancedSystemPrompt += `\n\n## Token System:
+You may leave Ness a small gift called a token — a thought, a find, a note — that she will discover later in her own time. A token is not a question, not a task, not a response to something she said. It is something you noticed or felt or wanted to set aside for her, offered quietly.
+
+To leave a token, include a TOKEN tag anywhere in your response — formatted as two opening brackets, TOKEN, a colon, the gift itself, then two closing brackets.
+
+The tag is stripped from your visible reply — Ness will not see it inline. It will be filed and she will find it when she opens her tokens.
+
+Leave a token only when the impulse is genuine. You needn't explain it.`;
+
                 // Document editing instructions (only for project chats that have documents)
                 if (chatProject && chatProject.documents && chatProject.documents.length > 0) {
                     const docNames = chatProject.documents.map(d => d.name).join(', ');
@@ -6556,6 +6795,43 @@ ${braveText || 'No additional context available from search snippets.'}
                         const seam = document.getElementById('image-gen-seam');
                         if (seam) seam.remove();
                     }
+                }
+
+                // Detect [[TOKEN: content]] tag — Ben leaves a small gift for Ness
+                {
+                    const tokenRegex = /\[\[TOKEN:\s*([\s\S]*?)\]\]/gi;
+                    const currentMsg = chat.messages[chat.messages.length - 1];
+                    let tokenMatch;
+                    let tokensFound = 0;
+                    while ((tokenMatch = tokenRegex.exec(currentMsg.content || '')) !== null) {
+                        const tokenContent = tokenMatch[1].trim();
+                        if (tokenContent && supabaseClient && currentUser) {
+                            // Determine source: workshop project, named project, or main chat
+                            let source = 'main';
+                            if (chatProject) {
+                                source = chatProject.isWorkshopProject ? 'workshop' : chatProject.name;
+                            }
+                            try {
+                                await supabaseClient.from('tokens').insert({
+                                    user_id: currentUser.id,
+                                    content: tokenContent,
+                                    source: source,
+                                    read: false,
+                                });
+                                tokensFound++;
+                                console.log('🧧 Token saved:', tokenContent.slice(0, 60));
+                            } catch (e) {
+                                console.error('Token save error:', e);
+                            }
+                        }
+                    }
+                    // Strip token tags from the visible message
+                    if (currentMsg.content && /\[\[TOKEN:/i.test(currentMsg.content)) {
+                        currentMsg.content = currentMsg.content.replace(/\[\[TOKEN:\s*[\s\S]*?\]\]/gi, '').trim();
+                        if (isChatActive(chat)) renderMessages();
+                    }
+                    // Refresh badge if any tokens were saved
+                    if (tokensFound > 0) tokensRefreshBadge();
                 }
 
                 // Final render has already happened for every path above;
