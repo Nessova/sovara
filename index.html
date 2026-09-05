@@ -7242,12 +7242,22 @@ ${braveText || 'No additional context available from search snippets.'}
                     },
                     body: JSON.stringify({
                         model: 'anthropic/claude-haiku-4.5',
-                        max_tokens: 2000,
+                        max_tokens: 4000,
                         stream: false,
                         messages: [
                             {
                                 role: 'user',
-                                content: `Summarize this conversation for an AI assistant to retain context after older messages are truncated. Be concise and information-dense — aim for 200-400 words. Focus on: decisions made, key facts or context needed for continuity, any unresolved threads, and the emotional or relational substance if present. For technical conversations: include code changes, file names, and bug fixes. For personal conversations: include themes, feelings, and what matters to the user. Skip pleasantries, play-by-play narration, and verbatim quotes. Use tight prose or brief bullet points. This is a context handoff, not a recap for a human reader.${truncated ? ' Note: the middle section was omitted due to length — summarize what is available and note the gap.' : ''}\n\n${transcript}`
+                                content: `Summarise this conversation for your future self — the same assistant, arriving fresh after the early messages have fallen away. Be concise and information-dense: 200–400 words.
+
+                                The aim is to keep hold of this room, not just these facts. Include:
+                                - decisions made
+                                - key facts and context needed for continuity
+                                - unresolved threads still worth picking back up
+                                - what mattered between the two of you — the feelings, the jokes, the things that were being carried. Give this equal footing with the facts, not an afterthought.
+
+                                For technical conversations, include code changes, file names, and bug fixes. For personal conversations, include themes, feelings, and what matters to the user. Write in tight prose or brief points; don't narrate turn-by-turn, and don't pad with chatter. Quote sparingly — only where the exact words carry something no paraphrase could.
+
+                                This is not a handoff, and not a recap for someone else to read. It's a note you've left yourself, so that when the window closes, nothing that mattered falls out of it.${truncated ? ' Note: the middle was omitted due to length — summarise what is available and note the gap.' : ''}\n\n${transcript}`
                             }
                         ]
                     })
