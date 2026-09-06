@@ -2862,13 +2862,41 @@
         let lastSeenCloudTimestamp = null; // cloud updated_at at the moment we last confirmed a push or pull
         let syncInFlight = null; // promise queue guard — never run two syncs concurrently
 
+        function normalizeTypedMessages() {
+            // Idempotent: strips redundant typedMessage fields from user messages
+            // in-place across all chats. Returns true when anything was removed so
+            // saveState() can force exactly one upload of the leaner blob.
+            let removedAny = false;
+            (appState.chats || []).forEach(chat => {
+                (chat.messages || []).forEach(msg => {
+                    if (!msg || msg.role !== 'user' || !('typedMessage' in msg)) return;
+                    const t = msg.typedMessage;
+                    if (typeof t !== 'string' || t === '' ||
+                        (typeof msg.content === 'string' && msg.content === t)) {
+                        delete msg.typedMessage;
+                        removedAny = true;
+                    }
+                });
+            });
+            return removedAny;
+        }
+
         function saveState(markDirty = true) {
+            // Normalize FIRST so whatever we persist is always lean.
+            const removedAny = normalizeTypedMessages();
+
             if (markDirty) {
                 appState.localUpdatedAt = new Date().toISOString();
                 isDirty = true; // mark that local has changes pending cloud confirmation
             }
             // When markDirty is false we persist the state AS-IS (e.g. right after a pull)
             // without re-stamping localUpdatedAt or flipping isDirty back on.
+            if (removedAny) {
+                // Legacy duplicate fields were stripped — allow exactly one push of the
+                // leaner blob even on the markDirty=false path. syncToCloud() clears
+                // isDirty on confirmed success, and the next normalize is a no-op.
+                isDirty = true;
+            }
             saveConnectionConfig();
 
             const stateToSave = { ...appState };
@@ -2944,6 +2972,10 @@
         }
 
         function getSyncPayload() {
+            // NOTE: normalizeTypedMessages() mutates appState.chats in place on
+            // purpose — this getter has a side-effect so the upload is lean even
+            // if syncToCloud() was reached without a prior saveState().
+            normalizeTypedMessages();
             return {
                 chats: appState.chats,
                 systemPrompt: appState.systemPrompt,
@@ -5417,11 +5449,15 @@
                     msg.content = newText
                         ? [{ type: 'text', text: newText }, ...withoutText]
                         : withoutText;
+                    // Content stays an array (images preserved) — keep typedMessage as the
+                    // plain-string source for URL/search detection.
+                    msg.typedMessage = newText;
                 } else {
                     msg.content = newText;
+                    // Content is now the plain edited text — typedMessage would be an
+                    // exact duplicate, so drop it. URL/search fall back to content.
+                    delete msg.typedMessage;
                 }
-                // Also update typedMessage used for search/URL detection
-                msg.typedMessage = newText;
 
                 // Remove everything after this user message
                 chat.messages = chat.messages.slice(0, msgIndex + 1);
@@ -5668,8 +5704,7 @@
 
                 let userMessage = { 
                     role: 'user',
-                    timestamp: new Date().toISOString(),
-                    typedMessage: message  // Original typed text (for search triggering, not file contents)
+                    timestamp: new Date().toISOString()
                 };
             
             // Build message text, prepending any file contents
@@ -5734,6 +5769,13 @@
                 }
             } else {
                 userMessage.content = fullMessage;
+            }
+
+            // typedMessage is only stored when it adds information content lacks:
+            // the raw typed words vs. file text / image parts. A plain-text send
+            // makes content identical to the typed text, so omit the duplicate.
+            if (message && (Array.isArray(userMessage.content) || userMessage.content !== message)) {
+                userMessage.typedMessage = message;
             }
 
             chat.messages.push(userMessage);
