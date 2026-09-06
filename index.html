@@ -2459,6 +2459,8 @@
         const APP_STATE_KEY = 'ness_chat_state';
         const SUPABASE_URL_KEY = 'ness_chat_supabase_url';
         const SUPABASE_KEY_KEY = 'ness_chat_supabase_key';
+        const SYNC_WATERMARK_KEY = 'ness_chat_last_seen_cloud';
+        const SYNC_DIVERGENT_BACKUP_PREFIX = 'ness_chat_sync_divergent_backup_';
 
         let appState = {
             apiKey: '',
@@ -2851,13 +2853,22 @@
 
             loadConnectionConfig();
             saveConnectionConfig();
+
+            // Watermark lives OUTSIDE appState so it can never be uploaded as part of the cloud blob.
+            lastSeenCloudTimestamp = localStorage.getItem(SYNC_WATERMARK_KEY) || null;
         }
 
         let isDirty = false; // true when local has unsaved changes not yet confirmed uploaded
+        let lastSeenCloudTimestamp = null; // cloud updated_at at the moment we last confirmed a push or pull
+        let syncInFlight = null; // promise queue guard — never run two syncs concurrently
 
-        function saveState() {
-            appState.localUpdatedAt = new Date().toISOString();
-            isDirty = true; // mark that local has changes pending cloud confirmation
+        function saveState(markDirty = true) {
+            if (markDirty) {
+                appState.localUpdatedAt = new Date().toISOString();
+                isDirty = true; // mark that local has changes pending cloud confirmation
+            }
+            // When markDirty is false we persist the state AS-IS (e.g. right after a pull)
+            // without re-stamping localUpdatedAt or flipping isDirty back on.
             saveConnectionConfig();
 
             const stateToSave = { ...appState };
@@ -2865,6 +2876,31 @@
             delete stateToSave.supabaseKey;
 
             localStorage.setItem(APP_STATE_KEY, JSON.stringify(stateToSave));
+        }
+
+        function setSyncWatermark(ts) {
+            lastSeenCloudTimestamp = ts || null;
+            if (lastSeenCloudTimestamp) {
+                localStorage.setItem(SYNC_WATERMARK_KEY, lastSeenCloudTimestamp);
+            } else {
+                localStorage.removeItem(SYNC_WATERMARK_KEY);
+            }
+        }
+
+        function captureDivergentBackup() {
+            // Full local data blob as it exists RIGHT NOW (pre-overwrite) — same shape
+            // saveState() persists, plus savedAt. Timestamped key so later conflicts
+            // never overwrite an older backup.
+            const stateToSave = { ...appState };
+            delete stateToSave.supabaseUrl;
+            delete stateToSave.supabaseKey;
+
+            const savedAt = new Date().toISOString();
+            let key = SYNC_DIVERGENT_BACKUP_PREFIX + Date.now();
+            while (localStorage.getItem(key)) key = SYNC_DIVERGENT_BACKUP_PREFIX + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+
+            localStorage.setItem(key, JSON.stringify({ savedAt, state: stateToSave }));
+            console.log('🔄 Saved pre-pull local backup:', key);
         }
 
         function getRecoverySnapshot(source) {
@@ -2907,8 +2943,29 @@
             isDirty = false; // cloud and local are now in sync
         }
 
+        function getSyncPayload() {
+            return {
+                chats: appState.chats,
+                systemPrompt: appState.systemPrompt,
+                userName: appState.userName,
+                aiName: appState.aiName,
+                selectedModel: appState.selectedModel,
+                customModels: appState.customModels,
+                contextWindowSize: appState.contextWindowSize,
+                pinnedMemory: appState.pinnedMemory,
+                keywordMemories: appState.keywordMemories,
+                braveApiKey: appState.braveApiKey,
+                folders: appState.folders,
+                darkMode: appState.darkMode,
+                proactiveEnabled: appState.proactiveEnabled,
+                globalBenSearch: appState.globalBenSearch,
+                aiMemories: appState.aiMemories,
+                projects: appState.projects || [],
+            };
+        }
+
         async function syncToCloud() {
-            if (!supabaseClient || !currentUser) return;
+            if (!supabaseClient || !currentUser) return false;
             
             const uploadTimestamp = new Date().toISOString();
 
@@ -2920,37 +2977,27 @@
                 await Promise.race([
                     supabaseClient.from('chat_data').upsert({
                         user_id: currentUser.id,
-                        data: {
-                            chats: appState.chats,
-                            systemPrompt: appState.systemPrompt,
-                            userName: appState.userName,
-                            aiName: appState.aiName,
-                            selectedModel: appState.selectedModel,
-                            customModels: appState.customModels,
-                            contextWindowSize: appState.contextWindowSize,
-                            pinnedMemory: appState.pinnedMemory,
-                            keywordMemories: appState.keywordMemories,
-                            braveApiKey: appState.braveApiKey,
-                            folders: appState.folders,
-                            darkMode: appState.darkMode,
-                            proactiveEnabled: appState.proactiveEnabled,
-                            globalBenSearch: appState.globalBenSearch,
-                            aiMemories: appState.aiMemories,
-                            projects: appState.projects || [],
-                        },
+                        data: getSyncPayload(),
                         updated_at: uploadTimestamp  // always a fresh timestamp so cloud catches up
                     }, { onConflict: 'user_id' }),
                     timeout
                 ]);
-                // Upload confirmed — sync local timestamp to match cloud, clear dirty flag
+                // Upload confirmed — sync local timestamp + watermark to match cloud, clear dirty flag
                 appState.localUpdatedAt = uploadTimestamp;
                 isDirty = false;
+                setSyncWatermark(uploadTimestamp);
+                saveState(false);
+                return true;
             } catch (e) {
+                // Timeout may fire client-side while the write still lands server-side.
+                // NEVER clear isDirty or touch the watermark here — only a confirmed
+                // fetch-based reconciliation may update them.
                 if (e.message === 'Sync timeout') {
                     console.log('🔄 Cloud sync timed out — will retry on next cycle');
                 } else {
                     console.error('Sync error:', e);
                 }
+                return false;
             }
         }
 
@@ -2978,6 +3025,14 @@
         }
 
         async function syncFromCloud() {
+            // Serialise sync: the 5-min poll and visibilitychange can fire close
+            // together — share the same in-flight sync instead of running two.
+            if (syncInFlight) return syncInFlight;
+            syncInFlight = performSync().finally(() => { syncInFlight = null; });
+            return syncInFlight;
+        }
+
+        async function performSync() {
             if (!supabaseClient || !currentUser) return;
             
             try {
@@ -2988,7 +3043,14 @@
                     .single();
                 
                 if (error) {
-                    if (error.code === 'PGRST116') return; // No row yet — that's fine
+                    if (error.code === 'PGRST116') {
+                        // No cloud row yet — push local if we have anything pending.
+                        if (isDirty) {
+                            console.log('🔄 No cloud row yet — pushing local state');
+                            await syncToCloud();
+                        }
+                        return;
+                    }
                     if (isAuthError(error)) {
                         console.log('🔄 Sync skipped: session expired, attempting refresh...');
                         await tryRefreshSession();
@@ -2998,29 +3060,54 @@
                 }
                 
                 if (data && data.data) {
+                    const cloudUpdatedAt = data.updated_at || new Date().toISOString();
+                    const cloudTime = new Date(data.updated_at || 0).getTime();
+
                     if (shouldPreferCloudData(data.data)) {
                         console.log('🔄 Cloud has recoverable data — restoring from cloud');
+                        if (isDirty) captureDivergentBackup();
                         applyCloudData({ ...data.data, updated_at: data.updated_at });
-                        saveState();
+                        setSyncWatermark(cloudUpdatedAt);
+                        saveState(false);
                         populateModelDropdown();
                         return;
                     }
 
-                    // Fall back to timestamps only when both sides look meaningfully populated.
-                    const cloudTime = new Date(data.updated_at || 0).getTime();
-                    const localTime = new Date(appState.localUpdatedAt || 0).getTime();
-                    if (localTime > cloudTime) {
-                        if (isDirty) {
-                            // Only push if we actually have local changes — avoids spurious uploads
-                            console.log('🔄 Local state is newer than cloud — pushing up');
-                            await syncToCloud();
-                        }
+                    if (!lastSeenCloudTimestamp) {
+                        // First contact on this device — always pull, never push.
+                        console.log('🔄 First sync on this device — pulling cloud state');
+                        if (isDirty) captureDivergentBackup();
+                        applyCloudData({ ...data.data, updated_at: data.updated_at });
+                        setSyncWatermark(cloudUpdatedAt);
+                        saveState(false);
+                        populateModelDropdown();
                         return;
                     }
 
-                    applyCloudData({ ...data.data, updated_at: data.updated_at });
-                    saveState();
-                    populateModelDropdown();
+                    const lastSeenTime = new Date(lastSeenCloudTimestamp).getTime();
+                    if (cloudTime > lastSeenTime) {
+                        // Cloud changed since we last looked. Cloud wins conflicts,
+                        // but preserve the divergent pre-pull local state first.
+                        console.log('🔄 Cloud changed since last sync — pulling');
+                        if (isDirty) {
+                            console.log('🔄 Local changes conflict with newer cloud data — cloud wins, local backed up');
+                            captureDivergentBackup();
+                        }
+                        applyCloudData({ ...data.data, updated_at: data.updated_at });
+                        setSyncWatermark(cloudUpdatedAt);
+                        saveState(false);
+                        populateModelDropdown();
+                        return;
+                    }
+
+                    if (isDirty) {
+                        // Cloud hasn't changed since we last looked — safe to push our pending local changes.
+                        console.log('🔄 Local changes pending — pushing up');
+                        await syncToCloud();
+                        return;
+                    }
+
+                    // No-op: nothing changed locally or in cloud.
                 }
             } catch (e) {
                 if (isAuthError(e)) {
