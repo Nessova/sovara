@@ -3066,16 +3066,17 @@
 
         async function performSync() {
             if (!supabaseClient || !currentUser) return;
-            
+
             try {
-                const { data, error } = await supabaseClient
+                // Stage 1: fetch timestamp only — cheap, a few bytes.
+                const { data: meta, error: metaError } = await supabaseClient
                     .from('chat_data')
-                    .select('data, updated_at')
+                    .select('updated_at')
                     .eq('user_id', currentUser.id)
                     .single();
-                
-                if (error) {
-                    if (error.code === 'PGRST116') {
+
+                if (metaError) {
+                    if (metaError.code === 'PGRST116') {
                         // No cloud row yet — push local if we have anything pending.
                         if (isDirty) {
                             console.log('🔄 No cloud row yet — pushing local state');
@@ -3083,6 +3084,43 @@
                         }
                         return;
                     }
+                    if (isAuthError(metaError)) {
+                        console.log('🔄 Sync skipped: session expired, attempting refresh...');
+                        await tryRefreshSession();
+                        return;
+                    }
+                    throw metaError;
+                }
+
+                if (!meta) return;
+
+                const cloudTime = new Date(meta.updated_at || 0).getTime();
+                const lastSeenTime = new Date(lastSeenCloudTimestamp || 0).getTime();
+
+                // Decide whether we need the full blob at all.
+                const needFullBlob = (
+                    !lastSeenCloudTimestamp ||   // first contact on this device
+                    cloudTime > lastSeenTime     // cloud changed since we last looked
+                );
+
+                if (!needFullBlob) {
+                    // Cloud hasn't changed since we last confirmed sync.
+                    if (isDirty) {
+                        console.log('🔄 Local changes pending — pushing up');
+                        await syncToCloud();
+                    }
+                    // Otherwise: true no-op. Don't fetch anything.
+                    return;
+                }
+
+                // Stage 2: cloud is newer (or first contact) — fetch the full blob.
+                const { data, error } = await supabaseClient
+                    .from('chat_data')
+                    .select('data, updated_at')
+                    .eq('user_id', currentUser.id)
+                    .single();
+
+                if (error) {
                     if (isAuthError(error)) {
                         console.log('🔄 Sync skipped: session expired, attempting refresh...');
                         await tryRefreshSession();
@@ -3090,57 +3128,41 @@
                     }
                     throw error;
                 }
-                
+
                 if (data && data.data) {
                     const cloudUpdatedAt = data.updated_at || new Date().toISOString();
-                    const cloudTime = new Date(data.updated_at || 0).getTime();
+
+                    // Helper to apply and record the pull.
+                    const applyPull = () => {
+                        applyCloudData({ ...data.data, updated_at: data.updated_at });
+                        setSyncWatermark(cloudUpdatedAt);
+                        saveState(false);
+                        populateModelDropdown();
+                    };
 
                     if (shouldPreferCloudData(data.data)) {
                         console.log('🔄 Cloud has recoverable data — restoring from cloud');
                         if (isDirty) captureDivergentBackup();
-                        applyCloudData({ ...data.data, updated_at: data.updated_at });
-                        setSyncWatermark(cloudUpdatedAt);
-                        saveState(false);
-                        populateModelDropdown();
+                        applyPull();
                         return;
                     }
 
                     if (!lastSeenCloudTimestamp) {
-                        // First contact on this device — always pull, never push.
                         console.log('🔄 First sync on this device — pulling cloud state');
                         if (isDirty) captureDivergentBackup();
-                        applyCloudData({ ...data.data, updated_at: data.updated_at });
-                        setSyncWatermark(cloudUpdatedAt);
-                        saveState(false);
-                        populateModelDropdown();
+                        applyPull();
                         return;
                     }
 
-                    const lastSeenTime = new Date(lastSeenCloudTimestamp).getTime();
-                    if (cloudTime > lastSeenTime) {
-                        // Cloud changed since we last looked. Cloud wins conflicts,
-                        // but preserve the divergent pre-pull local state first.
-                        console.log('🔄 Cloud changed since last sync — pulling');
-                        if (isDirty) {
-                            console.log('🔄 Local changes conflict with newer cloud data — cloud wins, local backed up');
-                            captureDivergentBackup();
-                        }
-                        applyCloudData({ ...data.data, updated_at: data.updated_at });
-                        setSyncWatermark(cloudUpdatedAt);
-                        saveState(false);
-                        populateModelDropdown();
-                        return;
-                    }
-
+                    // Cloud changed since we last looked — cloud wins conflicts.
+                    console.log('🔄 Cloud changed since last sync — pulling');
                     if (isDirty) {
-                        // Cloud hasn't changed since we last looked — safe to push our pending local changes.
-                        console.log('🔄 Local changes pending — pushing up');
-                        await syncToCloud();
-                        return;
+                        console.log('🔄 Local changes conflict with newer cloud data — cloud wins, local backed up');
+                        captureDivergentBackup();
                     }
-
-                    // No-op: nothing changed locally or in cloud.
+                    applyPull();
                 }
+
             } catch (e) {
                 if (isAuthError(e)) {
                     console.log('🔄 Sync skipped: session expired');
