@@ -6093,8 +6093,8 @@
 
                 // Synthetic user message delivering results — ensures conversation ends on user turn
                 const syntheticUserMsg = searchResultsText
-                    ? `Here are the search results for "${searchQuery}":\n\n${searchResultsText}\n\nPlease continue your response using this information.`
-                    : `The search for "${searchQuery}" returned no results. Please continue without that grounding.`;
+                    ? `Your search results have arrived. You are mid-response — continue from where you were, now grounded in this:\n\n"${searchQuery}":\n\n${searchResultsText}`
+                    : `Your search for "${searchQuery}" returned no results. You are mid-response — continue from where you were, without that grounding.`;
 
                 apiMessages.push({ role: 'user', content: syntheticUserMsg });
 
