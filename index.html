@@ -210,6 +210,13 @@
             transition: opacity 0.3s;
         }
 
+        /* Desktop-only expand button (see @media (min-width: 768px) below for the
+           .visible/flex treatment) — hidden by default so it can't appear on mobile,
+           where the sidebar is already the existing drawer/overlay pattern. */
+        .sidebar-expand-btn {
+            display: none;
+        }
+
         .sidebar-overlay.visible {
             opacity: 1;
             pointer-events: auto;
@@ -324,6 +331,46 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
+        }
+
+        .sidebar-footer-toggle {
+            width: 100%;
+            padding: 6px 4px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-footer-toggle:hover {
+            color: var(--text-secondary);
+        }
+
+        .sidebar-footer-toggle-chevron {
+            transition: transform 0.2s ease;
+        }
+
+        .sidebar-footer.collapsed .sidebar-footer-toggle-chevron {
+            transform: rotate(-90deg);
+        }
+
+        .sidebar-footer-items {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sidebar-footer.collapsed .sidebar-footer-items {
+            display: none;
+        }
+
+        .sidebar-footer.collapsed {
+            padding-bottom: 4px;
+            gap: 0;
         }
 
         .sidebar-btn {
@@ -1256,10 +1303,44 @@
             .sidebar {
                 width: 320px;
                 transform: translateX(0);
+                transition: width 0.2s ease, transform 0.2s ease;
+                overflow: hidden;
             }
-            
+
+            .sidebar.collapsed {
+                width: 0;
+                border-right: none;
+            }
+
             .app-container {
                 margin-left: 320px;
+                transition: margin-left 0.2s ease;
+            }
+
+            .app-container.sidebar-collapsed {
+                margin-left: 0;
+            }
+
+            .sidebar-expand-btn {
+                display: none;
+                position: fixed;
+                top: 16px;
+                left: 16px;
+                z-index: 101;
+                width: 36px;
+                height: 36px;
+                border-radius: 8px;
+                background: #E5EDE2;
+                color: #374C2F;
+                border: none;
+                font-size: 16px;
+                cursor: pointer;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .sidebar-expand-btn.visible {
+                display: flex;
             }
         }
 
@@ -2102,6 +2183,7 @@
                     <span class="tokens-badge" id="tokensBadge" style="display:none"></span>
                 </div>
                 <button class="new-chat-btn" id="sidebarNewChat">+</button>
+                <button class="header-icon-btn" id="sidebarCollapseBtn" title="Collapse sidebar">⏴</button>
             </div>
         </div>
         <div style="padding: 8px 12px;">
@@ -2114,14 +2196,21 @@
         </div>
         <div id="folderBar" style="padding: 4px 12px 8px; display:flex; gap:6px; flex-wrap:wrap; align-items:center;"></div>
         <div class="chat-list" id="chatList"></div>
-        <div class="sidebar-footer">
-            <button class="sidebar-btn" id="studioBtn">🎨 Studio</button>
-            <button class="sidebar-btn" id="journalBtn">📓 Journal</button>
-            <button class="sidebar-btn" id="darkModeBtn">🌙 Dark Mode</button>
-            <button class="sidebar-btn" id="settingsBtn">⚙️ Settings</button>
+        <div class="sidebar-footer" id="sidebarFooter">
+            <button class="sidebar-footer-toggle" id="sidebarFooterToggle" title="Show/hide menu">
+                <span>Menu</span>
+                <span class="sidebar-footer-toggle-chevron">▾</span>
+            </button>
+            <div class="sidebar-footer-items">
+                <button class="sidebar-btn" id="studioBtn">🎨 Studio</button>
+                <button class="sidebar-btn" id="journalBtn">📓 Journal</button>
+                <button class="sidebar-btn" id="darkModeBtn">🌙 Dark Mode</button>
+                <button class="sidebar-btn" id="settingsBtn">⚙️ Settings</button>
+            </div>
         </div>
     </div>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <button class="sidebar-expand-btn" id="sidebarExpandBtn" title="Show sidebar">⏵</button>
 
     <!-- Journal Modal -->
     <div class="modal-overlay" id="journalModal">
@@ -2461,6 +2550,8 @@
         const SUPABASE_URL_KEY = 'ness_chat_supabase_url';
         const SUPABASE_KEY_KEY = 'ness_chat_supabase_key';
         const SYNC_WATERMARK_KEY = 'ness_chat_last_seen_cloud';
+        const SIDEBAR_COLLAPSED_KEY = 'ness_chat_sidebar_collapsed';
+        const FOOTER_COLLAPSED_KEY = 'ness_chat_footer_collapsed';
         const SYNC_DIVERGENT_BACKUP_PREFIX = 'ness_chat_sync_divergent_backup_';
 
         let appState = {
@@ -2521,6 +2612,8 @@
         async function init() {
             loadState();
             applyDarkMode();
+            applySidebarCollapse();
+            applyFooterCollapse();
             populateModelDropdown();
             setupEventListeners();
             
@@ -2553,6 +2646,9 @@
             document.getElementById('logoutModalClose').addEventListener('click', closeLogoutModal);
             document.getElementById('menuBtn').addEventListener('click', toggleSidebar);
             document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar);
+            document.getElementById('sidebarCollapseBtn').addEventListener('click', toggleSidebarCollapse);
+            document.getElementById('sidebarExpandBtn').addEventListener('click', toggleSidebarCollapse);
+            document.getElementById('sidebarFooterToggle').addEventListener('click', toggleFooterCollapse);
             document.getElementById('sidebarNewChat').addEventListener('click', newChat);
             document.getElementById('newChatBtn').addEventListener('click', newChat);
             document.getElementById('studioBtn').addEventListener('click', openStudioView);
@@ -5028,6 +5124,37 @@
             }
         }
 
+        // Desktop-only sidebar collapse. Per-device UI state — deliberately kept in
+        // localStorage (not appState/the synced blob), same treatment as the sync
+        // watermark, since there's no reason to sync a cosmetic layout toggle across devices.
+        function applySidebarCollapse() {
+            const collapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1';
+            document.getElementById('sidebar').classList.toggle('collapsed', collapsed);
+            document.getElementById('appContainer').classList.toggle('sidebar-collapsed', collapsed);
+            document.getElementById('sidebarExpandBtn').classList.toggle('visible', collapsed);
+        }
+
+        function toggleSidebarCollapse() {
+            const collapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1';
+            localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '0' : '1');
+            applySidebarCollapse();
+        }
+
+        // Studio/Journal/Dark Mode/Settings footer block, collapsible independently of the
+        // whole-sidebar collapse above (this one works on mobile too, since the footer takes
+        // up chat-list room in the drawer just as much as on desktop). Same per-device
+        // localStorage treatment — starts expanded (today's behaviour) unless toggled.
+        function applyFooterCollapse() {
+            const collapsed = localStorage.getItem(FOOTER_COLLAPSED_KEY) === '1';
+            document.getElementById('sidebarFooter').classList.toggle('collapsed', collapsed);
+        }
+
+        function toggleFooterCollapse() {
+            const collapsed = localStorage.getItem(FOOTER_COLLAPSED_KEY) === '1';
+            localStorage.setItem(FOOTER_COLLAPSED_KEY, collapsed ? '0' : '1');
+            applyFooterCollapse();
+        }
+
         function toggleSearchMode() {
             searchEnabled = !searchEnabled;
             const btn = document.getElementById('searchToggleBtn');
@@ -5385,6 +5512,36 @@
             return `${months[date.getMonth()]} ${date.getDate()}, ${hours}:${mins} ${ampm}`;
         }
         
+        // Prepends a "[Message sent: ...]" timestamp to outgoing user-message content for
+        // the API payload only — never applied to msg.content, so it's invisible in the
+        // bubble and never stored/synced. Applied per-message using that message's own
+        // stored `timestamp` (set at send time in sendMessage()), so Ben sees actual gaps
+        // between turns across the whole context window, not just "now". Falls back to
+        // the current time only if no whenIso is passed. Handles both plain string
+        // content and array content (image/text parts).
+        function withSentTimestamp(content, whenIso) {
+            const when = whenIso ? new Date(whenIso) : new Date();
+            const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const whenDate = when.toLocaleDateString('en-US', dateOptions);
+            const whenTime = when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+            const label = `[Message sent: ${whenDate}, ${whenTime}]\n\n`;
+
+            if (typeof content === 'string') {
+                return label + content;
+            }
+            if (Array.isArray(content)) {
+                const idx = content.findIndex(p => p && p.type === 'text');
+                if (idx === -1) {
+                    // No text part (e.g. image-only send) — add one so the timestamp still reaches the model.
+                    return [{ type: 'text', text: label.trim() }, ...content];
+                }
+                const updated = content.slice();
+                updated[idx] = { ...updated[idx], text: label + updated[idx].text };
+                return updated;
+            }
+            return content;
+        }
+
         function copyMessage(msg) {
             let textToCopy = '';
             
@@ -5562,7 +5719,37 @@
         // ── MARKDOWN FORMATTING ───────────────────────────────────────────
 
         function formatMessage(text) {
-            // Escape HTML first to prevent injection
+            // Extract fenced code blocks FIRST, before any other transform, and swap them
+            // for opaque single-line placeholder tokens. This is the actual fix for
+            // "code copy strips formatting": the old order escaped+wrapped code blocks
+            // early, then ran list/strikethrough/bold/italic/inline-code regexes over the
+            // WHOLE string — including the already-wrapped code — so code containing **,
+            // *, `, or lines starting with "- "/"1. " got silently mangled before it ever
+            // reached the DOM. Copying via codeEl.textContent was always reading from that
+            // already-corrupted content; the copy handler itself was fine. Placeholder
+            // tokens (containing no newlines, letters, digits, or markdown characters)
+            // are immune to every later regex, so the restored code at the end is exactly
+            // what was inside the fence.
+            const codeBlocks = [];
+            text = text.replace(/```([\s\S]*?)```/g, (match, code) => {
+                const escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const token = '\u0000CB' + codeBlocks.length + '\u0000';
+                codeBlocks.push('<div class="code-block-wrapper"><button class="code-copy-btn" type="button" title="Copy code">Copy</button><pre><code>' + escaped + '</code></pre></div>');
+                return token;
+            });
+
+            // Same protection for inline code — it was just as exposed to bold/italic
+            // mangling (e.g. inline code containing an asterisk).
+            const inlineCodes = [];
+            text = text.replace(/`([^`]+)`/g, (match, code) => {
+                const escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const token = '\u0000IC' + inlineCodes.length + '\u0000';
+                inlineCodes.push('<code>' + escaped + '</code>');
+                return token;
+            });
+
+            // Escape HTML in whatever text is left (code content above was escaped
+            // individually, so this can't double-escape it)
             text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             
             // Headers (##, ###, etc.)
@@ -5576,9 +5763,6 @@
             
             // Block quotes
             text = text.replace(/^&gt; (.*?)$/gm, '<blockquote>$1</blockquote>');
-            
-            // Code blocks (before inline code) — wrapped so a copy button can be attached
-            text = text.replace(/```([\s\S]*?)```/g, '<div class="code-block-wrapper"><button class="code-copy-btn" type="button" title="Copy code">Copy</button><pre><code>$1</code></pre></div>');
             
             // Process lists line by line
             const lines = text.split('\n');
@@ -5653,9 +5837,6 @@
             // Italics
             text = text.replace(/\*([^\*]+)\*/g, '<em>$1</em>');
             
-            // Inline code
-            text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
-            
             // Clean up newlines around HTML blocks (remove extra spacing)
             text = text.replace(/\n+(<\/?(h[123]|ol|ul|li|blockquote|hr|pre|div)>)/g, '$1');
             text = text.replace(/(<\/?(h[123]|ol|ul|li|blockquote|hr|pre|div)>)\n+/g, '$1');
@@ -5665,6 +5846,17 @@
             
             // Convert single newlines to breaks (but not around HTML elements)
             text = text.replace(/([^>])\n([^<])/g, '$1<br>$2');
+            
+            // Code-block placeholders are one-line tokens, so any <br> that landed
+            // immediately next to one is spacing that used to be stripped by the
+            // newline-cleanup step above (back when the real <div> was already in
+            // place for it to match against). Strip it here instead, then restore.
+            text = text.replace(/(<br>\s*)+(\u0000CB\d+\u0000)/g, '$2');
+            text = text.replace(/(\u0000CB\d+\u0000)(\s*<br>)+/g, '$1');
+
+            // Restore code blocks and inline code, exactly as originally written
+            text = text.replace(/\u0000CB(\d+)\u0000/g, (m, i) => codeBlocks[Number(i)]);
+            text = text.replace(/\u0000IC(\d+)\u0000/g, (m, i) => inlineCodes[Number(i)]);
             
             return text;
         }
@@ -6090,7 +6282,15 @@
                 chat.messages
                     .slice(-contextLimit)
                     .filter(m => !m.isSearchSeam && m.content)
-                    .forEach(m => apiMessages.push({ role: m.role, content: m.content }));
+                    .forEach(m => {
+                        // Mirror the same per-message timestamp treatment as the main
+                        // streamResponse() path, so Ben doesn't lose time-gap awareness
+                        // specifically during search follow-ups.
+                        const content = (m.role === 'user' && m.timestamp)
+                            ? withSentTimestamp(m.content, m.timestamp)
+                            : m.content;
+                        apiMessages.push({ role: m.role, content: content });
+                    });
 
                 // Synthetic user message delivering results — ensures conversation ends on user turn
                 const syntheticUserMsg = searchResultsText
@@ -6401,6 +6601,18 @@ Do NOT search for things you already know confidently.`;
 
                         const textOnly = stripped.filter(p => p.type === 'text');
                         content = textOnly.length === 1 ? textOnly[0].text : stripped;
+                    }
+
+                    // Give the model a per-turn sense of elapsed time — stamped on every
+                    // user message still in the context window (not just the newest), using
+                    // each message's own stored send time, so Ben can gauge real gaps between
+                    // turns across the visible conversation. Model-only: this touches only the
+                    // outgoing apiMessages payload, never msg.content, so bubbles stay
+                    // untouched and nothing new is stored/synced. Messages from before this
+                    // feature shipped (no msg.timestamp) are left unstamped rather than
+                    // guessing a time for them.
+                    if (msg.role === 'user' && msg.timestamp) {
+                        content = withSentTimestamp(content, msg.timestamp);
                     }
 
                     apiMessages.push({ role: msg.role, content: content });
