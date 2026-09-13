@@ -2357,7 +2357,7 @@
     </div>
 
     <div class="modal-overlay" id="settingsModal">
-        <div class="modal">
+        <div class="modal" style="max-width: 760px;">
             <div class="modal-header">
                 <h3>Settings</h3>
                 <button class="modal-close" id="settingsClose">✕</button>
@@ -2389,19 +2389,19 @@
 
                 <div class="form-group">
                     <label>System Prompt</label>
-                    <textarea id="systemPromptInput" placeholder="You are a helpful AI assistant..."></textarea>
+                    <textarea id="systemPromptInput" placeholder="You are a helpful AI assistant..." style="min-height: 220px;"></textarea>
                     <div class="hint">This sets the personality and behavior of your AI</div>
                 </div>
 
                 <div class="form-group">
                     <label>Pinned Memory (Always Active)</label>
-                    <textarea id="pinnedMemoryInput" placeholder="Core facts about yourself that should always be remembered...&#10;e.g., I'm 56, Gen X, live in Townsville, Queensland" style="min-height: 100px;"></textarea>
+                    <textarea id="pinnedMemoryInput" placeholder="Core facts about yourself that should always be remembered...&#10;e.g., I'm 56, Gen X, live in Townsville, Queensland" style="min-height: 180px;"></textarea>
                     <div class="hint">This context is always included in every conversation</div>
                 </div>
 
                 <div class="form-group">
                     <label>Keyword Memory (Contextual)</label>
-                    <textarea id="keywordMemoryInput" placeholder="keyword: memory text (one per line)&#10;gardening: Love Australian natives, planning front garden&#10;writing: Working on first novel set in Iran&#10;AI: Interested in AI consciousness and ethics" style="min-height: 120px;"></textarea>
+                    <textarea id="keywordMemoryInput" placeholder="keyword: memory text (one per line)&#10;gardening: Love Australian natives, planning front garden&#10;writing: Working on first novel set in Iran&#10;AI: Interested in AI consciousness and ethics" style="min-height: 220px;"></textarea>
                     <div class="hint">Format: keyword: memory text (one per line). Memories activate when keyword appears in your message</div>
                 </div>
 
@@ -2423,7 +2423,7 @@
 
                 <div class="form-group">
                     <label>Custom Models (one per line)</label>
-                    <textarea id="customModelsInput" placeholder="anthropic/claude-3.5-sonnet&#10;openai/gpt-4o" style="min-height: 100px;"></textarea>
+                    <textarea id="customModelsInput" placeholder="anthropic/claude-3.5-sonnet&#10;openai/gpt-4o" style="min-height: 140px;"></textarea>
                     <div class="hint">Add model IDs from openrouter.ai/models - one per line. Format: provider/model-name</div>
                 </div>
 
@@ -7896,9 +7896,15 @@ ${braveText || 'No additional context available from search snippets.'}
             
             list.innerHTML = '';
             memories.forEach((m, index) => {
+                // Outer wrapper is the thing startEditAiMemory() swaps out — kept separate
+                // from the flex line below so the edit textarea gets the row's full width
+                // rather than being squeezed into a flex slot next to date/edit/delete.
                 const row = document.createElement('div');
-                row.style.cssText = 'display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--border-light);';
-                
+                row.style.cssText = 'padding:6px 0; border-bottom:1px solid var(--border-light);';
+
+                const line = document.createElement('div');
+                line.style.cssText = 'display:flex; align-items:center; gap:8px;';
+
                 const text = document.createElement('div');
                 text.style.cssText = 'flex:1; font-size:13px; color:var(--text-primary);';
                 text.textContent = m.text;
@@ -7914,7 +7920,7 @@ ${braveText || 'No additional context available from search snippets.'}
                 editBtn.style.cssText = 'background:none; border:none; cursor:pointer; font-size:14px; padding:2px;';
                 editBtn.textContent = '✎';
                 editBtn.title = 'Edit';
-                editBtn.onclick = () => editAiMemory(index);
+                editBtn.onclick = () => startEditAiMemory(index, row);
                 
                 const delBtn = document.createElement('button');
                 delBtn.style.cssText = 'background:none; border:none; cursor:pointer; font-size:14px; padding:2px; color:var(--danger);';
@@ -7922,25 +7928,57 @@ ${braveText || 'No additional context available from search snippets.'}
                 delBtn.title = 'Delete';
                 delBtn.onclick = () => deleteAiMemory(index);
                 
-                row.appendChild(text);
-                row.appendChild(date);
-                row.appendChild(editBtn);
-                row.appendChild(delBtn);
+                line.appendChild(text);
+                line.appendChild(date);
+                line.appendChild(editBtn);
+                line.appendChild(delBtn);
+                row.appendChild(line);
                 list.appendChild(row);
             });
         }
 
-        function editAiMemory(index) {
+        // Replaces a single memory row with an inline expanding textarea — same pattern as
+        // editing a chat message, instead of the old single-line native prompt(), which
+        // couldn't wrap or resize. Only this one row is touched, not the whole list.
+        function startEditAiMemory(index, row) {
             const memory = appState.aiMemories[index];
             if (!memory) return;
-            const newText = prompt('Edit memory:', memory.text);
-            if (newText !== null && newText.trim()) {
-                appState.aiMemories[index].text = newText.trim();
+
+            row.innerHTML = '';
+
+            const textarea = document.createElement('textarea');
+            textarea.className = 'edit-message-textarea';
+            textarea.value = memory.text;
+            textarea.rows = Math.max(2, memory.text.split('\n').length);
+            row.appendChild(textarea);
+            textarea.focus();
+            textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+            const btnRow = document.createElement('div');
+            btnRow.className = 'edit-btn-row';
+
+            const saveBtn = document.createElement('button');
+            saveBtn.className = 'edit-save-btn';
+            saveBtn.textContent = 'Save';
+            saveBtn.onclick = () => {
+                const newText = textarea.value.trim();
+                if (!newText) return;
+                appState.aiMemories[index].text = newText;
                 saveState();
                 syncToCloud();
                 renderAiMemories();
-            }
+            };
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = 'edit-cancel-btn';
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.onclick = () => renderAiMemories();
+
+            btnRow.appendChild(saveBtn);
+            btnRow.appendChild(cancelBtn);
+            row.appendChild(btnRow);
         }
+
 
         function deleteAiMemory(index) {
             appState.aiMemories.splice(index, 1);
