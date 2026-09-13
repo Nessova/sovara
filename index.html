@@ -1211,6 +1211,12 @@
             margin-bottom: 20px;
         }
 
+        .settings-page-body {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 0 20px 40px;
+        }
+
         .form-group label {
             display: block;
             font-size: 13px;
@@ -2356,13 +2362,30 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="settingsModal">
-        <div class="modal" style="max-width: 760px;">
+    <div class="modal-overlay" id="settingsUnsavedModal">
+        <div class="modal" style="max-width:420px;">
             <div class="modal-header">
-                <h3>Settings</h3>
-                <button class="modal-close" id="settingsClose">✕</button>
+                <h3>Unsaved changes</h3>
+                <button class="modal-close" id="settingsUnsavedClose">✕</button>
             </div>
             <div class="modal-body">
+                <p style="color:var(--text-muted); font-size:14px; margin-bottom:16px; line-height:1.6;">
+                    Settings has changes that haven't been saved yet. What would you like to do?
+                </p>
+                <div style="display:flex; gap:10px; margin-top:8px; flex-wrap:wrap;">
+                    <button id="settingsUnsavedSaveBtn" class="doc-edit-accept-btn" style="flex:1; padding:10px; min-width:80px;">Save</button>
+                    <button id="settingsUnsavedDiscardBtn" class="doc-edit-reject-btn" style="flex:1; padding:10px; min-width:80px; background:rgba(226,170,160,0.15); border-color:var(--danger); color:var(--danger); font-weight:600;">Discard</button>
+                    <button id="settingsUnsavedCancelBtn" style="padding:10px 16px; background:none; border:1px solid var(--border); border-radius:8px; color:var(--text-secondary); cursor:pointer; font-family:inherit; font-size:14px;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings page content lives in this inert <template> — renderSettingsPage() clones
+         it into #chatArea, Studio-style, instead of the old modal. Kept as real HTML rather
+         than a JS string so the field markup (ids, placeholders, hints) needs no retyping. -->
+    <template id="settingsPageTemplate">
+        <div class="settings-page-body">
                 <div class="form-group">
                     <label>Supabase URL (Optional - for sync)</label>
                     <input type="text" id="supabaseUrlInput" placeholder="https://xxxxx.supabase.co">
@@ -2460,9 +2483,8 @@
                 </div>
 
                 <button class="save-btn" id="saveSettingsBtn">Save Settings</button>
-            </div>
         </div>
-    </div>
+    </template>
 
     <!-- Project Settings Modal -->
     <div class="modal-overlay" id="projectSettingsModal">
@@ -2612,9 +2634,13 @@
         let studioActiveNoteId = null; // id of note being viewed/edited; null = list, or a new unsaved note
         let studioEditSnapshot = null; // { title, content } at edit-start, for dirty checking
         let studioPendingNav = null;   // callback to run once an unsaved-changes prompt is resolved
+        let viewingSettings = false;   // true when Settings full page is open (replaces the old modal)
+        let settingsSnapshot = null;   // raw field values at page-open/last-save, for dirty checking
+        let settingsMemoryEditOpen = false; // true while a memory row's own inline textarea is open — a separate, instant-save system the field snapshot above knows nothing about
+        let settingsPendingNav = null; // callback to run once Settings' own unsaved-changes prompt is resolved
 
         window.addEventListener('beforeunload', function(e) {
-            if (studioHasUnsavedChanges()) {
+            if (studioHasUnsavedChanges() || settingsHasUnsavedChanges()) {
                 e.preventDefault();
                 e.returnValue = '';
             }
@@ -2668,10 +2694,12 @@
             document.getElementById('studioUnsavedCancelBtn').addEventListener('click', closeStudioUnsavedModal);
             document.getElementById('studioUnsavedDiscardBtn').addEventListener('click', studioUnsavedDiscard);
             document.getElementById('studioUnsavedSaveBtn').addEventListener('click', studioUnsavedSave);
+            document.getElementById('settingsUnsavedClose').addEventListener('click', closeSettingsUnsavedModal);
+            document.getElementById('settingsUnsavedCancelBtn').addEventListener('click', closeSettingsUnsavedModal);
+            document.getElementById('settingsUnsavedDiscardBtn').addEventListener('click', settingsUnsavedDiscard);
+            document.getElementById('settingsUnsavedSaveBtn').addEventListener('click', settingsUnsavedSave);
             document.getElementById('journalBtn').addEventListener('click', openJournal);
-            document.getElementById('settingsBtn').addEventListener('click', openSettings);
-            document.getElementById('settingsClose').addEventListener('click', closeSettings);
-            document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+            document.getElementById('settingsBtn').addEventListener('click', openSettingsPage);
             document.getElementById('trimChatBtn').addEventListener('click', openTrimChatModal);
             document.getElementById('summariseBtn').addEventListener('click', summariseChat);
             document.getElementById('thinkingBtn').addEventListener('click', toggleThinkingMode);
@@ -2874,6 +2902,11 @@
                     await fetchAndRenderTelegramMessages();
                 } else if (viewingWorkshop) {
                     await fetchAndRenderWorkshopSessions();
+                } else if (viewingSettings) {
+                    // Never touch #chatArea while Settings is open — same treatment as
+                    // Studio's edit mode above. Settings has no separate list/detail split,
+                    // so there's nothing safe to refresh in the background; the page reads
+                    // straight from its own form fields until an explicit Save.
                 } else if (isNearBottom()) {
                     // Only re-render if user is near the bottom — prevents scroll jump while reading
                     renderMessages();
@@ -2895,6 +2928,8 @@
                         await fetchAndRenderTelegramMessages();
                     } else if (viewingWorkshop) {
                         await fetchAndRenderWorkshopSessions();
+                    } else if (viewingSettings) {
+                        // Same as the poll above — leave the page alone.
                     } else {
                         // On tab return always re-render — user is actively returning to the app
                         renderMessages();
@@ -3394,6 +3429,7 @@
             if (viewingTokens) closeTokensView();
             if (viewingTelegram) closeTelegramView();
             if (viewingWorkshop) closeWorkshopView();
+            if (viewingSettings) closeSettingsPageForce();
             appState.activeChatId = chatId;
             const chat = getActiveChat();
             if (chat && chat.model) {
@@ -3600,6 +3636,7 @@
                             if (guardStudioNav(() => tgItem.onclick())) return;
                             if (viewingStudio) closeStudioView();
                             if (viewingTokens) closeTokensView();
+                            if (viewingSettings) closeSettingsPageForce();
                             viewingTelegram = true;
                             appState.activeChatId = null;
                             renderProjectList();
@@ -3619,6 +3656,7 @@
                             if (guardStudioNav(() => wsItem.onclick())) return;
                             if (viewingStudio) closeStudioView();
                             if (viewingTokens) closeTokensView();
+                            if (viewingSettings) closeSettingsPageForce();
                             viewingWorkshop = true;
                             appState.activeChatId = null;
                             renderProjectList();
@@ -4327,6 +4365,11 @@
                 document.getElementById('studioUnsavedModal').classList.add('open');
                 return true;
             }
+            if (settingsHasUnsavedChanges()) {
+                settingsPendingNav = action;
+                document.getElementById('settingsUnsavedModal').classList.add('open');
+                return true;
+            }
             return false;
         }
 
@@ -4359,6 +4402,7 @@
             if (viewingTelegram) closeTelegramView();
             if (viewingWorkshop) closeWorkshopView();
             if (viewingTokens) closeTokensView();
+            if (viewingSettings) closeSettingsPageForce();
 
             closeSidebar();
             viewingStudio = true;
@@ -4711,6 +4755,7 @@
             if (viewingTelegram) closeTelegramView();
             if (viewingWorkshop) closeWorkshopView();
             if (viewingStudio) closeStudioView();
+            if (viewingSettings) closeSettingsPageForce();
 
             closeSidebar();
             viewingTokens = true;
@@ -5953,7 +5998,7 @@
                 if (!message && pendingImages.length === 0 && pendingFiles.length === 0) return;
                 if (!appState.apiKey) {
                     showToast('Please set your OpenRouter API key in settings', true);
-                    openSettings();
+                    openSettingsPage();
                     return;
                 }
 
@@ -7859,9 +7904,97 @@ ${braveText || 'No additional context available from search snippets.'}
         }
 
         // ── SETTINGS ──────────────────────────────────────────────────────
+        // Full-page view, Studio-style, replacing the old modal. viewingSettings joins
+        // viewingStudio/viewingTokens/viewingTelegram/viewingWorkshop as a top-level view:
+        // it's checked in the same sync-poll/visibilitychange branches (so background sync
+        // never overwrites the page mid-edit) and closed alongside the others by every
+        // existing nav entry point. guardStudioNav() — despite the name, the one existing
+        // choke point already threaded through every nav path — now also checks Settings'
+        // own dirty state, so extending it here covers all those call sites for free
+        // instead of touching each one individually.
 
-        function openSettings() {
-            document.getElementById('settingsModal').classList.add('open');
+        function settingsFieldSnapshot() {
+            return JSON.stringify({
+                supabaseUrl: document.getElementById('supabaseUrlInput').value,
+                supabaseKey: document.getElementById('supabaseKeyInput').value,
+                apiKey: document.getElementById('apiKeyInput').value,
+                braveApiKey: document.getElementById('braveApiKeyInput').value,
+                systemPrompt: document.getElementById('systemPromptInput').value,
+                pinnedMemory: document.getElementById('pinnedMemoryInput').value,
+                keywordMemory: document.getElementById('keywordMemoryInput').value,
+                userName: document.getElementById('userNameInput').value,
+                aiName: document.getElementById('aiNameInput').value,
+                contextWindow: document.getElementById('contextWindowInput').value,
+                customModels: document.getElementById('customModelsInput').value,
+                proactive: document.getElementById('proactiveToggle').checked,
+                globalBenSearch: document.getElementById('globalBenSearchToggle').checked,
+            });
+        }
+
+        function settingsHasUnsavedChanges() {
+            if (!viewingSettings) return false;
+            if (settingsMemoryEditOpen) return true;
+            if (!settingsSnapshot) return false;
+            return settingsFieldSnapshot() !== settingsSnapshot;
+        }
+
+        function openSettingsPage() {
+            if (guardStudioNav(openSettingsPage)) return;
+            if (viewingTelegram) closeTelegramView();
+            if (viewingWorkshop) closeWorkshopView();
+            if (viewingTokens) closeTokensView();
+            if (viewingStudio) closeStudioView();
+
+            closeSidebar();
+            viewingSettings = true;
+            appState.activeChatId = null;
+
+            const inputArea = document.querySelector('.input-area');
+            if (inputArea) inputArea.style.display = 'none';
+
+            renderSettingsPage();
+        }
+
+        function closeSettingsPageForce() {
+            viewingSettings = false;
+            settingsSnapshot = null;
+            settingsPendingNav = null;
+            settingsMemoryEditOpen = false;
+            const inputArea = document.querySelector('.input-area');
+            if (inputArea) inputArea.style.display = '';
+        }
+
+        function settingsBackToChats() {
+            if (guardStudioNav(settingsBackToChats)) return;
+            closeSettingsPageForce();
+            renderChatList();
+            renderMessages();
+        }
+
+        function renderSettingsPage() {
+            if (!viewingSettings) return;
+            settingsMemoryEditOpen = false; // fresh render always starts with no memory row mid-edit
+            const chatArea = document.getElementById('chatArea');
+            chatArea.innerHTML = '';
+
+            const header = document.createElement('div');
+            header.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:20px 20px 12px; gap:12px; max-width:760px; margin:0 auto;';
+            const backBtn = document.createElement('button');
+            backBtn.textContent = '← Back';
+            backBtn.style.cssText = 'padding:8px 14px; border-radius:8px; border:1px solid var(--border); background:none; color:var(--text-secondary); font-size:13px; font-family:inherit; cursor:pointer; white-space:nowrap;';
+            backBtn.onclick = settingsBackToChats;
+            const title = document.createElement('h2');
+            title.style.cssText = 'font-size:18px; font-weight:600; color:var(--text-primary);';
+            title.textContent = '⚙️ Settings';
+            header.appendChild(backBtn);
+            header.appendChild(title);
+            header.appendChild(document.createElement('div')); // spacer, keeps title centered
+            chatArea.appendChild(header);
+
+            const template = document.getElementById('settingsPageTemplate');
+            chatArea.appendChild(template.content.cloneNode(true));
+
+            // Populate fields from appState — same values the old modal populated on open
             document.getElementById('supabaseUrlInput').value = appState.supabaseUrl || '';
             document.getElementById('supabaseKeyInput').value = appState.supabaseKey || '';
             document.getElementById('apiKeyInput').value = appState.apiKey || '';
@@ -7876,10 +8009,44 @@ ${braveText || 'No additional context available from search snippets.'}
             document.getElementById('proactiveToggle').checked = appState.proactiveEnabled !== false;
             document.getElementById('globalBenSearchToggle').checked = appState.globalBenSearch === true;
             renderAiMemories();
+
+            // Fresh listener each render, since the template is cloned anew every time
+            document.getElementById('saveSettingsBtn').addEventListener('click', saveSettingsPage);
+
+            // Baseline for the unsaved-changes guard — taken after populating fields, so a
+            // freshly-opened page with nothing touched never reads as dirty.
+            settingsSnapshot = settingsFieldSnapshot();
         }
 
-        function closeSettings() {
-            document.getElementById('settingsModal').classList.remove('open');
+        function closeSettingsUnsavedModal() {
+            document.getElementById('settingsUnsavedModal').classList.remove('open');
+            settingsPendingNav = null;
+        }
+
+        async function settingsUnsavedSave() {
+            document.getElementById('settingsUnsavedModal').classList.remove('open');
+            const pending = settingsPendingNav;
+            settingsPendingNav = null;
+            await saveSettingsPage();
+            // saveSettingsPage() only persists the tracked form fields — it has no way to
+            // also save an in-progress memory-row edit (that's a separate, explicit-save
+            // system). Treat "Save" here the same way Discard treats it: the memory text
+            // itself was never going to be carried through by this button, so clear the
+            // flag rather than leaving it stuck true, which would just re-trip this same
+            // prompt in a loop on the very next nav attempt.
+            settingsMemoryEditOpen = false;
+            if (pending) pending();
+        }
+
+        function settingsUnsavedDiscard() {
+            document.getElementById('settingsUnsavedModal').classList.remove('open');
+            const pending = settingsPendingNav;
+            settingsPendingNav = null;
+            // Neutralise the dirty check before re-running the pending nav, or it would
+            // just trip the guard again.
+            settingsSnapshot = null;
+            settingsMemoryEditOpen = false;
+            if (pending) pending();
         }
 
         function renderAiMemories() {
@@ -7944,6 +8111,8 @@ ${braveText || 'No additional context available from search snippets.'}
             const memory = appState.aiMemories[index];
             if (!memory) return;
 
+            settingsMemoryEditOpen = true;
+
             row.innerHTML = '';
 
             const textarea = document.createElement('textarea');
@@ -7966,13 +8135,17 @@ ${braveText || 'No additional context available from search snippets.'}
                 appState.aiMemories[index].text = newText;
                 saveState();
                 syncToCloud();
+                settingsMemoryEditOpen = false;
                 renderAiMemories();
             };
 
             const cancelBtn = document.createElement('button');
             cancelBtn.className = 'edit-cancel-btn';
             cancelBtn.textContent = 'Cancel';
-            cancelBtn.onclick = () => renderAiMemories();
+            cancelBtn.onclick = () => {
+                settingsMemoryEditOpen = false;
+                renderAiMemories();
+            };
 
             btnRow.appendChild(saveBtn);
             btnRow.appendChild(cancelBtn);
@@ -8003,7 +8176,7 @@ ${braveText || 'No additional context available from search snippets.'}
             showToast('Memory added');
         }
 
-        async function saveSettings() {
+        async function saveSettingsPage() {
             appState.supabaseUrl = document.getElementById('supabaseUrlInput').value.trim();
             appState.supabaseKey = document.getElementById('supabaseKeyInput').value.trim();
             appState.apiKey = document.getElementById('apiKeyInput').value.trim();
@@ -8079,8 +8252,10 @@ ${braveText || 'No additional context available from search snippets.'}
                 showToast('Settings saved');
             }
             
-            closeSettings();
-            renderMessages();
+            // Stay on the page after saving — matches Studio's explicit-save-only
+            // convention. Just mark the snapshot clean so the unsaved-changes guard
+            // doesn't misfire on the very next nav attempt.
+            settingsSnapshot = settingsFieldSnapshot();
         }
 
         // ── MISC UI HELPERS ───────────────────────────────────────────────
