@@ -630,6 +630,11 @@
             word-break: break-word;
         }
 
+        .message-bubble.editing {
+            align-self: stretch;
+            width: 100%;
+        }
+
         .message.user .message-bubble {
             background: var(--user-bubble);
             border-bottom-right-radius: 4px;
@@ -795,6 +800,12 @@
         .message-timestamp {
             font-size: 11px;
             color: var(--text-secondary);
+        }
+
+        .message-edited-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-style: italic;
         }
 
         .message-actions {
@@ -5437,6 +5448,17 @@
                 timestamp.textContent = formatTimestamp(msg.timestamp);
                 metaRow.appendChild(timestamp);
             }
+
+            // Manually-corrected marker — distinguishes an in-place edit from a delete
+            // (which removes the message outright) so an edited assistant message is
+            // never mistaken for something Ben wrote unprompted.
+            if (msg.edited) {
+                const editedLabel = document.createElement('span');
+                editedLabel.className = 'message-edited-label';
+                editedLabel.textContent = '(edited)';
+                editedLabel.title = 'Manually corrected';
+                metaRow.appendChild(editedLabel);
+            }
             
             // Action buttons container
             const actions = document.createElement('div');
@@ -5474,15 +5496,14 @@
             deleteBtn.onclick = () => deleteMessage(msgIndex);
             actions.appendChild(deleteBtn);
             
-            // Edit button (only for user messages)
-            if (msg.role === 'user') {
-                const editBtn = document.createElement('button');
-                editBtn.className = 'message-action-btn';
-                editBtn.innerHTML = '✏️';
-                editBtn.title = 'Edit message';
-                editBtn.onclick = () => editMessage(msgIndex, bubble);
-                actions.appendChild(editBtn);
-            }
+            // Edit button (both user and assistant messages — assistant edits are an
+            // in-place correction, no truncation/regenerate; see editMessage())
+            const editBtn = document.createElement('button');
+            editBtn.className = 'message-action-btn';
+            editBtn.innerHTML = '✏️';
+            editBtn.title = 'Edit message';
+            editBtn.onclick = () => editMessage(msgIndex, bubble);
+            actions.appendChild(editBtn);
             
             // Regenerate button (only for assistant messages)
             if (msg.role === 'assistant') {
@@ -5589,7 +5610,9 @@
             if (!chat || appState.isStreaming) return;
 
             const msg = chat.messages[msgIndex];
-            if (!msg || msg.role !== 'user') return;
+            if (!msg || (msg.role !== 'user' && msg.role !== 'assistant')) return;
+
+            const isUserMsg = msg.role === 'user';
 
             // Extract the editable text (handles both string and array content)
             let originalText = '';
@@ -5602,7 +5625,13 @@
                     .join(' ');
             }
 
-            // Replace bubble content with a textarea
+            // Replace bubble content with a textarea. .editing forces the bubble to
+            // stretch to its row's full width instead of shrink-wrapping to content —
+            // without it the bubble collapses to the textarea's tiny intrinsic width
+            // (bubbles are flex children with align-items:flex-start/flex-end, which
+            // sizes them to content unless overridden). renderMessages() rebuilds the
+            // bubble fresh on Save/Cancel, so this class never needs manual removal.
+            bubble.classList.add('editing');
             bubble.innerHTML = '';
             const textarea = document.createElement('textarea');
             textarea.className = 'edit-message-textarea';
@@ -5618,7 +5647,10 @@
 
             const saveBtn = document.createElement('button');
             saveBtn.className = 'edit-save-btn';
-            saveBtn.textContent = 'Save & Regenerate';
+            // User edits still regenerate everything after (existing behaviour). Assistant
+            // edits are a quick in-place correction only — no truncation, no regenerate —
+            // for fixing a wrong day/detail Ben mixed up so later context reads clean.
+            saveBtn.textContent = isUserMsg ? 'Save & Regenerate' : 'Save';
             saveBtn.onclick = async () => {
                 const newText = textarea.value.trim();
                 if (!newText) return;
@@ -5629,23 +5661,39 @@
                     msg.content = newText
                         ? [{ type: 'text', text: newText }, ...withoutText]
                         : withoutText;
-                    // Content stays an array (images preserved) — keep typedMessage as the
-                    // plain-string source for URL/search detection.
-                    msg.typedMessage = newText;
+                    if (isUserMsg) {
+                        // Content stays an array (images preserved) — keep typedMessage as the
+                        // plain-string source for URL/search detection.
+                        msg.typedMessage = newText;
+                    }
                 } else {
                     msg.content = newText;
-                    // Content is now the plain edited text — typedMessage would be an
-                    // exact duplicate, so drop it. URL/search fall back to content.
-                    delete msg.typedMessage;
+                    if (isUserMsg) {
+                        // Content is now the plain edited text — typedMessage would be an
+                        // exact duplicate, so drop it. URL/search fall back to content.
+                        delete msg.typedMessage;
+                    }
                 }
 
-                // Remove everything after this user message
-                chat.messages = chat.messages.slice(0, msgIndex + 1);
-
-                saveState();
-                renderMessages();
-                await streamResponse(chat, false);
-                syncToCloud();
+                if (isUserMsg) {
+                    // Remove everything after this user message
+                    chat.messages = chat.messages.slice(0, msgIndex + 1);
+                    saveState();
+                    renderMessages();
+                    await streamResponse(chat, false);
+                    syncToCloud();
+                } else {
+                    // Assistant edit: correct the record in place. No truncation, no
+                    // regenerate — the rest of the conversation already happened in
+                    // response to what Ben actually said, and rewriting it would create a
+                    // false history. `edited` marks the message as manually corrected so
+                    // it's never mistaken for something Ben wrote himself (distinct from a
+                    // delete, which removes the message; this keeps it, flagged as changed).
+                    msg.edited = true;
+                    saveState();
+                    renderMessages();
+                    syncToCloud();
+                }
             };
 
             const cancelBtn = document.createElement('button');
