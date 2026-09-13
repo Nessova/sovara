@@ -2636,7 +2636,6 @@
         let studioPendingNav = null;   // callback to run once an unsaved-changes prompt is resolved
         let viewingSettings = false;   // true when Settings full page is open (replaces the old modal)
         let settingsSnapshot = null;   // raw field values at page-open/last-save, for dirty checking
-        let settingsMemoryEditOpen = false; // true while a memory row's own inline textarea is open — a separate, instant-save system the field snapshot above knows nothing about
         let settingsPendingNav = null; // callback to run once Settings' own unsaved-changes prompt is resolved
 
         window.addEventListener('beforeunload', function(e) {
@@ -3058,6 +3057,22 @@
             }
         }
 
+        function pruneDivergentBackups(keepCount) {
+            // Keeps only the most recent `keepCount` backups — this prefix has been
+            // accumulating unbounded since it was added, which is almost certainly why
+            // localStorage filled up (QuotaExceededError seen in testing) and, very
+            // plausibly, why saves got slower — the browser has to work harder to find
+            // space for writes the closer storage gets to its cap.
+            const keys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && k.startsWith(SYNC_DIVERGENT_BACKUP_PREFIX)) keys.push(k);
+            }
+            keys.sort(); // timestamp-prefixed keys sort chronologically
+            const toRemove = keys.slice(0, Math.max(0, keys.length - keepCount + 1));
+            toRemove.forEach(k => localStorage.removeItem(k));
+        }
+
         function captureDivergentBackup() {
             // Full local data blob as it exists RIGHT NOW (pre-overwrite) — same shape
             // saveState() persists, plus savedAt. Timestamped key so later conflicts
@@ -3070,8 +3085,15 @@
             let key = SYNC_DIVERGENT_BACKUP_PREFIX + Date.now();
             while (localStorage.getItem(key)) key = SYNC_DIVERGENT_BACKUP_PREFIX + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
 
-            localStorage.setItem(key, JSON.stringify({ savedAt, state: stateToSave }));
-            console.log('🔄 Saved pre-pull local backup:', key);
+            try {
+                pruneDivergentBackups(5); // keep the 5 most recent; make room before writing a new one
+                localStorage.setItem(key, JSON.stringify({ savedAt, state: stateToSave }));
+                console.log('🔄 Saved pre-pull local backup:', key);
+            } catch (e) {
+                // A failed backup must never block the actual sync/pull it was meant to
+                // protect — that would be worse than the data it's trying to guard.
+                console.warn('⚠️ Could not save pre-pull backup (continuing without one):', e);
+            }
         }
 
         function getRecoverySnapshot(source) {
@@ -7932,9 +7954,7 @@ ${braveText || 'No additional context available from search snippets.'}
         }
 
         function settingsHasUnsavedChanges() {
-            if (!viewingSettings) return false;
-            if (settingsMemoryEditOpen) return true;
-            if (!settingsSnapshot) return false;
+            if (!viewingSettings || !settingsSnapshot) return false;
             return settingsFieldSnapshot() !== settingsSnapshot;
         }
 
@@ -7959,7 +7979,6 @@ ${braveText || 'No additional context available from search snippets.'}
             viewingSettings = false;
             settingsSnapshot = null;
             settingsPendingNav = null;
-            settingsMemoryEditOpen = false;
             const inputArea = document.querySelector('.input-area');
             if (inputArea) inputArea.style.display = '';
         }
@@ -7973,7 +7992,6 @@ ${braveText || 'No additional context available from search snippets.'}
 
         function renderSettingsPage() {
             if (!viewingSettings) return;
-            settingsMemoryEditOpen = false; // fresh render always starts with no memory row mid-edit
             const chatArea = document.getElementById('chatArea');
             chatArea.innerHTML = '';
 
@@ -8028,13 +8046,6 @@ ${braveText || 'No additional context available from search snippets.'}
             const pending = settingsPendingNav;
             settingsPendingNav = null;
             await saveSettingsPage();
-            // saveSettingsPage() only persists the tracked form fields — it has no way to
-            // also save an in-progress memory-row edit (that's a separate, explicit-save
-            // system). Treat "Save" here the same way Discard treats it: the memory text
-            // itself was never going to be carried through by this button, so clear the
-            // flag rather than leaving it stuck true, which would just re-trip this same
-            // prompt in a loop on the very next nav attempt.
-            settingsMemoryEditOpen = false;
             if (pending) pending();
         }
 
@@ -8045,7 +8056,6 @@ ${braveText || 'No additional context available from search snippets.'}
             // Neutralise the dirty check before re-running the pending nav, or it would
             // just trip the guard again.
             settingsSnapshot = null;
-            settingsMemoryEditOpen = false;
             if (pending) pending();
         }
 
@@ -8111,8 +8121,6 @@ ${braveText || 'No additional context available from search snippets.'}
             const memory = appState.aiMemories[index];
             if (!memory) return;
 
-            settingsMemoryEditOpen = true;
-
             row.innerHTML = '';
 
             const textarea = document.createElement('textarea');
@@ -8135,25 +8143,23 @@ ${braveText || 'No additional context available from search snippets.'}
                 appState.aiMemories[index].text = newText;
                 saveState();
                 syncToCloud();
-                settingsMemoryEditOpen = false;
                 renderAiMemories();
             };
 
             const cancelBtn = document.createElement('button');
             cancelBtn.className = 'edit-cancel-btn';
             cancelBtn.textContent = 'Cancel';
-            cancelBtn.onclick = () => {
-                settingsMemoryEditOpen = false;
-                renderAiMemories();
-            };
+            cancelBtn.onclick = () => renderAiMemories();
 
             btnRow.appendChild(saveBtn);
             btnRow.appendChild(cancelBtn);
             row.appendChild(btnRow);
         }
 
-
         function deleteAiMemory(index) {
+            const memory = appState.aiMemories[index];
+            if (!memory) return;
+            if (!confirm('Delete this memory?\n\n"' + memory.text + '"')) return;
             appState.aiMemories.splice(index, 1);
             saveState();
             syncToCloud();
