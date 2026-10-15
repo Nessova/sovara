@@ -3057,6 +3057,10 @@
                     } catch (e2) {
                         // Still full. Don't throw — isDirty is already set, so the next sync
                         // still pushes this state to the cloud. Local copy is just stale.
+                        // The on-disk watermark must NOT claim we're in sync with stale data,
+                        // or a reload would push the old blob over the cloud (16 Oct data loss).
+                        // Removing it makes the next load "first contact", which always pulls.
+                        localStorage.removeItem(SYNC_WATERMARK_KEY);
                         console.error('❌ Local save failed even after clearing backups:', e2);
                         showToast('Device storage is full — changes are saving to the cloud only', true);
                     }
