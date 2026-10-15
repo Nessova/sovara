@@ -3045,7 +3045,25 @@
             delete stateToSave.supabaseUrl;
             delete stateToSave.supabaseKey;
 
-            localStorage.setItem(APP_STATE_KEY, JSON.stringify(stateToSave));
+            try {
+                localStorage.setItem(APP_STATE_KEY, JSON.stringify(stateToSave));
+            } catch (e) {
+                if (e && (e.name === 'QuotaExceededError' || e.code === 22)) {
+                    // Live state matters more than old backups — clear them all and retry once.
+                    console.warn('⚠️ localStorage full — clearing divergent backups and retrying save');
+                    pruneDivergentBackups(0);
+                    try {
+                        localStorage.setItem(APP_STATE_KEY, JSON.stringify(stateToSave));
+                    } catch (e2) {
+                        // Still full. Don't throw — isDirty is already set, so the next sync
+                        // still pushes this state to the cloud. Local copy is just stale.
+                        console.error('❌ Local save failed even after clearing backups:', e2);
+                        showToast('Device storage is full — changes are saving to the cloud only', true);
+                    }
+                } else {
+                    throw e;
+                }
+            }
         }
 
         function setSyncWatermark(ts) {
@@ -3086,7 +3104,7 @@
             while (localStorage.getItem(key)) key = SYNC_DIVERGENT_BACKUP_PREFIX + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
 
             try {
-                pruneDivergentBackups(5); // keep the 5 most recent; make room before writing a new one
+                pruneDivergentBackups(1); // keep only the most recent — each backup is a FULL blob copy
                 localStorage.setItem(key, JSON.stringify({ savedAt, state: stateToSave }));
                 console.log('🔄 Saved pre-pull local backup:', key);
             } catch (e) {
