@@ -4310,7 +4310,7 @@
             try {
                 const { data, error } = await supabaseClient
                     .from('workshop_sessions')
-                    .select('*')
+                    .select('ran_at, summary, edits_applied, edits_skipped_truncated')
                     .eq('user_id', currentUser.id)
                     .order('ran_at', { ascending: false })
                     .limit(50);
