@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ness Chat</title>
+    <title>Sovara</title>
     <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="manifest" href="manifest.webmanifest">
     <meta name="theme-color" content="#F3F7F1">
     <style>
         /* ── Root Variables & Reset ──────────────────────────────────────── */
@@ -6482,7 +6483,7 @@
                         'Authorization': 'Bearer ' + appState.apiKey,
                         'Content-Type': 'application/json',
                         'HTTP-Referer': window.location.origin,
-                        'X-Title': 'Ness Chat',
+                        'X-Title': 'Sovara',
                     },
                     body: JSON.stringify(requestBody),
                     signal: abortController.signal
@@ -7049,7 +7050,7 @@ ${braveText || 'No additional context available from search snippets.'}
                         'Authorization': 'Bearer ' + appState.apiKey,
                         'Content-Type': 'application/json',
                         'HTTP-Referer': window.location.origin,
-                        'X-Title': 'Ness Chat',
+                        'X-Title': 'Sovara',
                     },
                     body: JSON.stringify(requestBody),
                     signal: abortController.signal
@@ -7287,7 +7288,7 @@ ${braveText || 'No additional context available from search snippets.'}
                             headers: {
                                 'Authorization': `Bearer ${appState.apiKey}`,
                                 'Content-Type': 'application/json',
-                                'X-Title': 'Ness Chat'
+                                'X-Title': 'Sovara'
                             },
                             body: JSON.stringify({
                                 model: 'bytedance-seed/seedream-4.5',
@@ -7767,7 +7768,7 @@ ${braveText || 'No additional context available from search snippets.'}
                         'Authorization': 'Bearer ' + appState.apiKey,
                         'Content-Type': 'application/json',
                         'HTTP-Referer': window.location.origin,
-                        'X-Title': 'Ness Chat',
+                        'X-Title': 'Sovara',
                     },
                     body: JSON.stringify({
                         model: 'anthropic/claude-haiku-4.5',
