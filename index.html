@@ -2220,7 +2220,7 @@
                 <span class="sidebar-footer-toggle-chevron">▾</span>
             </button>
             <div class="sidebar-footer-items">
-                <button class="sidebar-btn" id="studioBtn">🎨 Studio</button>
+                <button class="sidebar-btn" id="studioBtn">📖 Library</button>
                 <button class="sidebar-btn" id="journalBtn">📓 Journal</button>
                 <button class="sidebar-btn" id="darkModeBtn">🌙 Dark Mode</button>
                 <button class="sidebar-btn" id="settingsBtn">⚙️ Settings</button>
@@ -4398,7 +4398,14 @@
             const titleEl = document.getElementById('studioEditTitle');
             const contentEl = document.getElementById('studioEditContent');
             if (!titleEl || !contentEl) return false;
-            return titleEl.value !== studioEditSnapshot.title || contentEl.value !== studioEditSnapshot.content;
+            const descEl = document.getElementById('studioEditDescription');
+            const visEl = document.getElementById('studioEditVisible');
+            const descNow = descEl ? descEl.value : (studioEditSnapshot.description || '');
+            const visNow = visEl ? visEl.checked : (studioEditSnapshot.visibleToBen === true);
+            return titleEl.value !== studioEditSnapshot.title
+                || contentEl.value !== studioEditSnapshot.content
+                || descNow !== (studioEditSnapshot.description || '')
+                || visNow !== (studioEditSnapshot.visibleToBen === true);
         }
 
         // Call at the top of any action that would navigate away from Studio.
@@ -4502,9 +4509,9 @@
             header.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:20px 20px 12px; gap:12px;';
             const title = document.createElement('h2');
             title.style.cssText = 'font-size:18px; font-weight:600; color:var(--text-primary);';
-            title.textContent = '🎨 Studio';
+            title.textContent = '📖 Library';
             const newBtn = document.createElement('button');
-            newBtn.textContent = '+ New Note';
+            newBtn.textContent = '+ New Document';
             newBtn.style.cssText = 'padding:8px 14px; border-radius:8px; border:none; background:var(--accent-alt); color:var(--text-primary); font-size:13px; font-family:inherit; font-weight:500; cursor:pointer; white-space:nowrap;';
             const noBackend = !supabaseClient || !currentUser;
             if (noBackend) { newBtn.disabled = true; newBtn.style.opacity = '0.5'; newBtn.style.cursor = 'default'; }
@@ -4516,7 +4523,7 @@
             if (noBackend) {
                 const msg = document.createElement('div');
                 msg.style.cssText = 'text-align:center; color:var(--text-muted); padding:60px 20px; font-size:14px;';
-                msg.textContent = 'Studio needs cloud sync — sign in to use it.';
+                msg.textContent = 'Library needs cloud sync — sign in to use it.';
                 chatArea.appendChild(msg);
                 return;
             }
@@ -4524,7 +4531,7 @@
             if (studioNotes.length === 0) {
                 const empty = document.createElement('div');
                 empty.style.cssText = 'text-align:center; color:var(--text-muted); padding:60px 20px; font-size:14px;';
-                empty.textContent = 'No notes yet. Start writing whenever you like. 🎨';
+                empty.textContent = 'No documents here yet. Add one whenever you like. 📖';
                 chatArea.appendChild(empty);
                 return;
             }
@@ -4538,7 +4545,7 @@
 
                 const titleEl = document.createElement('div');
                 titleEl.className = 'studio-note-title';
-                titleEl.textContent = (note.title && note.title.trim()) ? note.title : 'Untitled note';
+                titleEl.textContent = (note.title && note.title.trim()) ? note.title : 'Untitled';
 
                 const dateEl = document.createElement('div');
                 dateEl.className = 'studio-note-date';
@@ -4547,6 +4554,8 @@
                 const previewEl = document.createElement('div');
                 previewEl.className = 'studio-note-preview';
                 previewEl.textContent = (note.content || '').slice(0, 220);
+
+                if (note.visible_to_ben) titleEl.textContent = '📖 ' + titleEl.textContent;
 
                 card.appendChild(titleEl);
                 card.appendChild(dateEl);
@@ -4563,7 +4572,7 @@
             if (!supabaseClient || !currentUser) return;
             studioMode = 'edit';
             studioActiveNoteId = null;
-            studioEditSnapshot = { title: '', content: '' };
+            studioEditSnapshot = { title: '', content: '', description: '', visibleToBen: false };
             studioRenderEdit();
         }
 
@@ -4596,7 +4605,7 @@
 
             const titleEl = document.createElement('h2');
             titleEl.style.cssText = 'font-size:20px; font-weight:600; color:var(--text-primary); margin-bottom:6px; word-break:break-word;';
-            titleEl.textContent = (note.title && note.title.trim()) ? note.title : 'Untitled note';
+            titleEl.textContent = (note.title && note.title.trim()) ? note.title : 'Untitled';
             wrap.appendChild(titleEl);
 
             const dateEl = document.createElement('div');
@@ -4604,10 +4613,17 @@
             dateEl.textContent = 'Updated ' + formatDate(note.updated_at);
             wrap.appendChild(dateEl);
 
+            if (note.visible_to_ben) {
+                const vis = document.createElement('div');
+                vis.style.cssText = 'font-size:12px; color:var(--accent-alt-dim); margin-bottom:18px;';
+                vis.textContent = '📖 In Ben\'s Library' + ((note.description && note.description.trim()) ? ' — ' + note.description.trim() : '');
+                wrap.appendChild(vis);
+            }
+
             const body = document.createElement('div');
             body.className = 'studio-note-view';
             body.style.cssText = 'font-size:15px; line-height:1.7; color:var(--text-primary); margin-bottom:24px; overflow-wrap:break-word; word-break:break-word;';
-            body.innerHTML = note.content ? formatMessage(note.content) : '<span style="color:var(--text-muted); font-style:italic;">Empty note</span>';
+            body.innerHTML = note.content ? formatMessage(note.content) : '<span style="color:var(--text-muted); font-style:italic;">Empty document</span>';
             wrap.appendChild(body);
 
             const actions = document.createElement('div');
@@ -4638,10 +4654,10 @@
         async function studioCopyNoteContent(content) {
             try {
                 await navigator.clipboard.writeText(content);
-                showToast('Note copied to clipboard');
+                showToast('Document copied to clipboard');
             } catch (e) {
                 console.error('Studio copy error:', e);
-                showToast('Failed to copy note', true);
+                showToast('Failed to copy document', true);
             }
         }
 
@@ -4651,7 +4667,7 @@
             if (!note) return;
             studioMode = 'edit';
             studioActiveNoteId = id;
-            studioEditSnapshot = { title: note.title || '', content: note.content || '' };
+            studioEditSnapshot = { title: note.title || '', content: note.content || '', description: note.description || '', visibleToBen: note.visible_to_ben === true };
             studioRenderEdit();
         }
 
@@ -4676,6 +4692,27 @@
             contentArea.value = studioEditSnapshot.content;
             contentArea.style.cssText = 'width:100%; min-height:400px; padding:14px; background:var(--bg-tertiary); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); font-size:15px; line-height:1.6; font-family:inherit; outline:none; resize:vertical;';
 
+            // Library fields: a one-line description for Ben's catalogue, and the toggle that
+            // decides whether Ben can see/open this document at all. Both default off/empty.
+            const descInput = document.createElement('input');
+            descInput.type = 'text';
+            descInput.id = 'studioEditDescription';
+            descInput.placeholder = 'One-line description (shown to Ben in the Library list)';
+            descInput.value = studioEditSnapshot.description || '';
+            descInput.style.cssText = 'width:100%; padding:10px 14px; background:var(--bg-tertiary); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); font-size:13px; font-family:inherit; outline:none;';
+
+            const visibleRow = document.createElement('label');
+            visibleRow.style.cssText = 'display:flex; align-items:center; gap:10px; cursor:pointer; font-size:13.5px; color:var(--text-secondary); padding:2px;';
+            const visibleCheck = document.createElement('input');
+            visibleCheck.type = 'checkbox';
+            visibleCheck.id = 'studioEditVisible';
+            visibleCheck.checked = studioEditSnapshot.visibleToBen === true;
+            visibleCheck.style.cssText = 'width:17px; height:17px; cursor:pointer; flex-shrink:0;';
+            const visibleText = document.createElement('span');
+            visibleText.textContent = '\U0001F4D6 Ben can read this document (adds it to his Library)';
+            visibleRow.appendChild(visibleCheck);
+            visibleRow.appendChild(visibleText);
+
             const actions = document.createElement('div');
             actions.style.cssText = 'display:flex; gap:10px;';
             const saveBtn = document.createElement('button');
@@ -4694,6 +4731,8 @@
             actions.appendChild(cancelBtn);
 
             wrap.appendChild(titleInput);
+            wrap.appendChild(descInput);
+            wrap.appendChild(visibleRow);
             wrap.appendChild(contentArea);
             wrap.appendChild(actions);
             chatArea.appendChild(wrap);
@@ -4725,28 +4764,32 @@
         }
 
         async function studioSaveCurrentNote() {
-            if (!supabaseClient || !currentUser) { showToast('Studio needs cloud sync', true); return false; }
+            if (!supabaseClient || !currentUser) { showToast('Library needs cloud sync', true); return false; }
             const titleEl = document.getElementById('studioEditTitle');
             const contentEl = document.getElementById('studioEditContent');
             if (!titleEl || !contentEl) return false;
             const title = titleEl.value.trim();
             const content = contentEl.value;
+            const descEl = document.getElementById('studioEditDescription');
+            const visEl = document.getElementById('studioEditVisible');
+            const description = descEl ? descEl.value.trim() : '';
+            const visibleToBen = visEl ? visEl.checked : false;
             const now = new Date().toISOString();
 
             try {
                 if (studioActiveNoteId) {
                     const { error } = await supabaseClient
                         .from('studio_notes')
-                        .update({ title, content, updated_at: now })
+                        .update({ title, content, description, visible_to_ben: visibleToBen, updated_at: now })
                         .eq('id', studioActiveNoteId)
                         .eq('user_id', currentUser.id);
                     if (error) throw error;
                     const existing = studioNotes.find(n => n.id === studioActiveNoteId);
-                    if (existing) { existing.title = title; existing.content = content; existing.updated_at = now; }
+                    if (existing) { existing.title = title; existing.content = content; existing.description = description; existing.visible_to_ben = visibleToBen; existing.updated_at = now; }
                 } else {
                     const { data, error } = await supabaseClient
                         .from('studio_notes')
-                        .insert({ user_id: currentUser.id, title, content, created_at: now, updated_at: now })
+                        .insert({ user_id: currentUser.id, title, content, description, visible_to_ben: visibleToBen, created_at: now, updated_at: now })
                         .select()
                         .single();
                     if (error) throw error;
@@ -4756,19 +4799,19 @@
                 studioNotes.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
                 studioEditSnapshot = null;
                 studioMode = 'view';
-                showToast('Note saved');
+                showToast('Document saved');
                 const saved = studioNotes.find(n => n.id === studioActiveNoteId);
                 if (saved) studioRenderView(saved);
                 return true;
             } catch (e) {
                 console.error('Studio save error:', e);
-                showToast('Failed to save note', true);
+                showToast('Failed to save document', true);
                 return false;
             }
         }
 
         async function studioDeleteNote(id) {
-            if (!confirm('Delete this note? This cannot be undone.')) return;
+            if (!confirm('Delete this document? This cannot be undone.')) return;
             if (!supabaseClient || !currentUser) return;
             try {
                 const { error } = await supabaseClient
@@ -4778,13 +4821,13 @@
                     .eq('user_id', currentUser.id);
                 if (error) throw error;
                 studioNotes = studioNotes.filter(n => n.id !== id);
-                showToast('Note deleted');
+                showToast('Document deleted');
                 studioMode = 'list';
                 studioActiveNoteId = null;
                 studioRenderList();
             } catch (e) {
                 console.error('Studio delete error:', e);
-                showToast('Failed to delete note', true);
+                showToast('Failed to delete document', true);
             }
         }
 
@@ -5371,7 +5414,7 @@
             // Search seam messages — inline divider showing Ben searched.
             // Carries a small ✕ so stray markers can be cleared from the UI —
             // they can't be removed any other way, so they pile up over time.
-            if (msg.isSearchSeam) {
+            if (msg.isSearchSeam || msg.isLibrarySeam) {
                 div.style.cssText = 'display:flex; flex-direction:row; align-items:center; justify-content:center; gap:8px; padding:6px 20px; font-size:12px; color:var(--text-muted); font-style:italic; opacity:0.75;';
 
                 const seamLabel = document.createElement('span');
@@ -5380,13 +5423,13 @@
 
                 const seamDelBtn = document.createElement('button');
                 seamDelBtn.textContent = '✕';
-                seamDelBtn.title = 'Remove this search marker';
+                seamDelBtn.title = 'Remove this marker';
                 seamDelBtn.style.cssText = 'background:none; border:none; cursor:pointer; color:var(--text-muted); font-size:12px; padding:0 2px; line-height:1; opacity:0.65; font-family:inherit; flex-shrink:0; font-style:normal;';
                 seamDelBtn.onmouseenter = () => { seamDelBtn.style.opacity = '1'; };
                 seamDelBtn.onmouseleave = () => { seamDelBtn.style.opacity = '0.65'; };
                 seamDelBtn.onclick = () => {
                     const chat = getActiveChat();
-                    if (!chat || !chat.messages[msgIndex] || !chat.messages[msgIndex].isSearchSeam) return;
+                    if (!chat || !chat.messages[msgIndex] || !(chat.messages[msgIndex].isSearchSeam || chat.messages[msgIndex].isLibrarySeam)) return;
                     chat.messages.splice(msgIndex, 1);
                     saveState();
                     renderMessages();
@@ -6403,181 +6446,12 @@
         // Follow-up streaming call after a [[SEARCH:]] — fires a clean request where the
         // search results arrive as a synthetic user message so the conversation ends on a
         // user turn (required by Anthropic/Bedrock/Google providers via OpenRouter).
-        async function streamResponseWithSearchResults(chat, searchQuery, searchResultsText) {
-            appState.isStreaming = true;
-            document.getElementById('sendBtn').style.display = 'none';
-            document.getElementById('stopBtn').classList.add('visible');
-            abortController = new AbortController();
-
-            let streamingMsgIndex = null;
-
-            try {
-                const chatProject = chat.projectId
-                    ? (appState.projects || []).find(p => p.id === chat.projectId)
-                    : null;
-
-                // Build system prompt (same as main streamResponse)
-                let systemPrompt = chatProject
-                    ? (chatProject.systemPrompt || appState.systemPrompt || '')
-                    : (appState.systemPrompt || '');
-
-                // Inject project docs
-                if (chatProject && chatProject.documents && chatProject.documents.length > 0) {
-                    systemPrompt += '\n\n## Project Documents:\n';
-                    chatProject.documents.forEach(doc => {
-                        systemPrompt += `\n### ${doc.name}\n${doc.content}\n`;
-                    });
-                }
-
-                const apiMessages = [];
-                if (systemPrompt) {
-                    apiMessages.push({ role: 'system', content: systemPrompt });
-                }
-
-                // Include recent conversation history (excluding seam messages and empty msgs)
-                const contextLimit = (chatProject && chatProject.contextWindowSize)
-                    ? chatProject.contextWindowSize
-                    : (appState.contextWindowSize || 10);
-
-                chat.messages
-                    .slice(-contextLimit)
-                    .filter(m => !m.isSearchSeam && m.content)
-                    .forEach(m => {
-                        // Mirror the same per-message timestamp treatment as the main
-                        // streamResponse() path, so Ben doesn't lose time-gap awareness
-                        // specifically during search follow-ups.
-                        const content = (m.role === 'user' && m.timestamp)
-                            ? withSentTimestamp(m.content, m.timestamp)
-                            : m.content;
-                        apiMessages.push({ role: m.role, content: content });
-                    });
-
-                // Synthetic user message delivering results — ensures conversation ends on user turn
-                const syntheticUserMsg = searchResultsText
-                    ? `Your search results have arrived. You are mid-response — continue from where you were, now grounded in this:\n\n"${searchQuery}":\n\n${searchResultsText}`
-                    : `Your search for "${searchQuery}" returned no results. You are mid-response — continue from where you were, without that grounding.`;
-
-                apiMessages.push({ role: 'user', content: syntheticUserMsg });
-
-                const requestBody = {
-                    model: appState.selectedModel,
-                    messages: apiMessages,
-                    max_tokens: 10000,
-                    stream: true,
-                };
-
-                if (isReasoningCappedModel(appState.selectedModel)) {
-                    // Match the main stream path: keep DeepSeek/Qwen hidden
-                    // reasoning brief so it doesn't consume the max_tokens pot
-                    // before any visible answer.
-                    requestBody.reasoning_effort = 'low';
-                }
-
-                if (appState.selectedModel.includes('deepseek')) {
-                    requestBody.provider = { order: ["DeepSeek"], allow_fallbacks: true };
-                }
-
-                const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': 'Bearer ' + appState.apiKey,
-                        'Content-Type': 'application/json',
-                        'HTTP-Referer': window.location.origin,
-                        'X-Title': 'Sovara',
-                    },
-                    body: JSON.stringify(requestBody),
-                    signal: abortController.signal
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    console.error('❌ Search follow-up 400:', JSON.stringify(errorData, null, 2));
-                    throw new Error(errorData.error?.message || 'Search follow-up failed: ' + response.status);
-                }
-
-                // Stream the response
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let fullResponse = '';
-                let fullThinking = '';
-
-                const typingEl = document.getElementById('typing-indicator');
-                if (typingEl) typingEl.remove();
-
-                streamingMsgIndex = beginAssistantMessage(chat);
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\n');
-                    for (const line of lines) {
-                        if (!line.startsWith('data: ')) continue;
-                        const data = line.slice(6).trim();
-                        if (data === '[DONE]') break;
-                        try {
-                            const parsed = JSON.parse(data);
-                            const delta = parsed.choices[0]?.delta;
-                            if (!delta) continue;
-
-                            // Mirror streamResponse: capture thinking/reasoning
-                            // content so DeepSeek's visible thinking still shows.
-                            if (delta.reasoning_details && delta.reasoning_details.length > 0) {
-                                delta.reasoning_details.forEach(rd => {
-                                    if (rd.type === 'reasoning.text' && rd.text) {
-                                        fullThinking += rd.text;
-                                    } else if (rd.type === 'reasoning.summary' && rd.summary) {
-                                        fullThinking += rd.summary;
-                                    }
-                                });
-                                showStreamingThinking(chat, streamingMsgIndex);
-                            }
-
-                            if (delta.content) {
-                                fullResponse += delta.content;
-                                chat.messages[chat.messages.length - 1].content = fullResponse;
-                                appendStreamingToken(chat, streamingMsgIndex, delta.content);
-                            }
-                        } catch (e) { /* skip malformed chunks */ }
-                    }
-                }
-
-                chat.messages[chat.messages.length - 1].content = fullResponse;
-                finishAssistantMessage(chat);
-                if (fullThinking) injectThinkingBlock(fullThinking, streamingMsgIndex, chat);
-                saveState();
-                if (currentUser) syncToCloud();
-
-            } catch (e) {
-                if (streamingMsgIndex !== null) finishAssistantMessage(chat);
-                if (e.name !== 'AbortError') {
-                    console.error('Search follow-up stream error:', e);
-                    showToast('Search follow-up error: ' + e.message, true);
-                }
-            } finally {
-                appState.isStreaming = false;
-                document.getElementById('sendBtn').style.display = '';
-                document.getElementById('stopBtn').classList.remove('visible');
-            }
-        }
-
-        async function streamResponse(chat, doSearch, doThinking, options = {}) {
-            appState.isStreaming = true;
-            document.getElementById('sendBtn').style.display = 'none';
-            document.getElementById('stopBtn').classList.add('visible');
-
-            abortController = new AbortController();
-
-            let streamingMsgIndex = null;
-
-            try {
-                const apiMessages = [];
-                
-                // If this chat belongs to a project, use project system prompt and docs
-                const chatProject = chat.projectId
-                    ? (appState.projects || []).find(p => p.id === chat.projectId)
-                    : null;
-
+        // Builds Ben's full enhanced system prompt — base/project prompt, date, pinned + AI
+        // memories, the tag-system instructions (memory / token / image / doc-edit / search /
+        // library), keyword-activated context, journal, project docs, and the Library catalogue.
+        // Shared by streamResponse() AND streamContinuation() so the two can never drift.
+        // Returns { systemPrompt, activatedKeywords }.
+        async function buildBenSystemPrompt(chat, chatProject) {
                 // Build enhanced system prompt with memories
                 let enhancedSystemPrompt = chatProject
                     ? (chatProject.systemPrompt || appState.systemPrompt || '')
@@ -6725,6 +6599,213 @@ Do NOT search for things you already know confidently.`;
                     });
                 }
 
+
+                // Library catalogue — titles + one-line descriptions of the documents Ness has
+                // marked visible to Ben. Full text is fetched on demand via the LIBRARY tag (one
+                // per turn). Lives in the studio_notes table (the Library's store). Available in
+                // every chat; silently skipped when signed out or when nothing is marked visible.
+                if (supabaseClient && currentUser) {
+                    try {
+                        const { data: libDocs } = await supabaseClient
+                            .from('studio_notes')
+                            .select('title, description')
+                            .eq('user_id', currentUser.id)
+                            .eq('visible_to_ben', true)
+                            .order('updated_at', { ascending: false });
+                        if (libDocs && libDocs.length > 0) {
+                            enhancedSystemPrompt += '\n\n## Library (documents you can open):\n';
+                            libDocs.forEach(d => {
+                                const t = (d.title && d.title.trim()) ? d.title.trim() : 'Untitled';
+                                const desc = (d.description && d.description.trim()) ? ' — ' + d.description.trim() : '';
+                                enhancedSystemPrompt += `- ${t}${desc}\n`;
+                            });
+                            enhancedSystemPrompt += `\nThese are documents in your Library — some written by you, some by Ness. You see their titles here, not their contents. When one genuinely bears on what you're saying, you can open it to read it in full: include a LIBRARY tag anywhere in your response — formatted as two opening brackets, LIBRARY, a colon, the document's exact title, then two closing brackets. Opening splits your response the way a search does — what you've written streams to Ness first, the document is fetched, and you are called again with its full text to continue from. Open at most one document per response, by its exact title, and only when it truly helps.`;
+                        }
+                    } catch (e) {
+                        console.log('Library catalogue fetch skipped:', e.message);
+                    }
+                }
+
+                return { systemPrompt: enhancedSystemPrompt, activatedKeywords };
+        }
+
+        // Unified follow-up for BOTH Ben's [[SEARCH:]] and [[LIBRARY:]] tags. The first streamed
+        // reply ended on an assistant turn; the API needs the conversation to end on a user turn,
+        // so the fetched payload (web results, a Library document, or a not-found note) is handed
+        // back as a synthetic user message and Ben continues from it. Crucially this rebuilds his
+        // FULL system prompt via buildBenSystemPrompt() — memories, journal, Library catalogue and
+        // all — so he arrives at the continuation whole, not stripped. Replaces the old
+        // search-only follow-up. kind: 'search' | 'library'; label: the query or the
+        // document title; payloadText: the results/content, or null when nothing was found.
+        async function streamContinuation(chat, kind, label, payloadText) {
+            appState.isStreaming = true;
+            document.getElementById('sendBtn').style.display = 'none';
+            document.getElementById('stopBtn').classList.add('visible');
+            abortController = new AbortController();
+
+            let streamingMsgIndex = null;
+
+            try {
+                const chatProject = chat.projectId
+                    ? (appState.projects || []).find(p => p.id === chat.projectId)
+                    : null;
+
+                // Full system prompt — same builder the main path uses, so the two never drift.
+                const { systemPrompt } = await buildBenSystemPrompt(chat, chatProject);
+
+                const apiMessages = [];
+                if (systemPrompt) {
+                    apiMessages.push({ role: 'system', content: systemPrompt });
+                }
+
+                // Recent conversation history (excluding seam markers and empty messages)
+                const contextLimit = (chatProject && chatProject.contextWindowSize)
+                    ? chatProject.contextWindowSize
+                    : (appState.contextWindowSize || 10);
+
+                chat.messages
+                    .slice(-contextLimit)
+                    .filter(m => !m.isSearchSeam && !m.isLibrarySeam && m.content)
+                    .forEach(m => {
+                        const content = (m.role === 'user' && m.timestamp)
+                            ? withSentTimestamp(m.content, m.timestamp)
+                            : m.content;
+                        apiMessages.push({ role: m.role, content: content });
+                    });
+
+                // Synthetic user message delivering the payload — keeps the convo ending on a user turn.
+                let syntheticUserMsg;
+                if (kind === 'library') {
+                    syntheticUserMsg = payloadText
+                        ? `The document you opened, "${label}", has arrived. You are mid-response — continue from where you were, now holding it in full:\n\n${payloadText}`
+                        : `The document "${label}" isn't in your Library (no exact title match). You are mid-response — continue without it; it's fine to say you couldn't find it.`;
+                } else {
+                    syntheticUserMsg = payloadText
+                        ? `Your search results have arrived. You are mid-response — continue from where you were, now grounded in this:\n\n"${label}":\n\n${payloadText}`
+                        : `Your search for "${label}" returned no results. You are mid-response — continue from where you were, without that grounding.`;
+                }
+
+                apiMessages.push({ role: 'user', content: syntheticUserMsg });
+
+                const requestBody = {
+                    model: appState.selectedModel,
+                    messages: apiMessages,
+                    max_tokens: 10000,
+                    stream: true,
+                };
+
+                if (isReasoningCappedModel(appState.selectedModel)) {
+                    requestBody.reasoning_effort = 'low';
+                }
+
+                if (appState.selectedModel.includes('deepseek')) {
+                    requestBody.provider = { order: ["DeepSeek"], allow_fallbacks: true };
+                }
+
+                const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + appState.apiKey,
+                        'Content-Type': 'application/json',
+                        'HTTP-Referer': window.location.origin,
+                        'X-Title': 'Sovara',
+                    },
+                    body: JSON.stringify(requestBody),
+                    signal: abortController.signal
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('❌ Continuation error:', JSON.stringify(errorData, null, 2));
+                    throw new Error(errorData.error?.message || 'Continuation failed: ' + response.status);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullResponse = '';
+                let fullThinking = '';
+
+                const typingEl = document.getElementById('typing-indicator');
+                if (typingEl) typingEl.remove();
+
+                streamingMsgIndex = beginAssistantMessage(chat);
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const data = line.slice(6).trim();
+                        if (data === '[DONE]') break;
+                        try {
+                            const parsed = JSON.parse(data);
+                            const delta = parsed.choices[0]?.delta;
+                            if (!delta) continue;
+
+                            if (delta.reasoning_details && delta.reasoning_details.length > 0) {
+                                delta.reasoning_details.forEach(rd => {
+                                    if (rd.type === 'reasoning.text' && rd.text) {
+                                        fullThinking += rd.text;
+                                    } else if (rd.type === 'reasoning.summary' && rd.summary) {
+                                        fullThinking += rd.summary;
+                                    }
+                                });
+                                showStreamingThinking(chat, streamingMsgIndex);
+                            }
+
+                            if (delta.content) {
+                                fullResponse += delta.content;
+                                chat.messages[chat.messages.length - 1].content = fullResponse;
+                                appendStreamingToken(chat, streamingMsgIndex, delta.content);
+                            }
+                        } catch (e) { /* skip malformed chunks */ }
+                    }
+                }
+
+                chat.messages[chat.messages.length - 1].content = fullResponse;
+                finishAssistantMessage(chat);
+                if (fullThinking) injectThinkingBlock(fullThinking, streamingMsgIndex, chat);
+                saveState();
+                if (currentUser) syncToCloud();
+
+            } catch (e) {
+                if (streamingMsgIndex !== null) finishAssistantMessage(chat);
+                if (e.name !== 'AbortError') {
+                    console.error('Continuation stream error:', e);
+                    showToast('Continuation error: ' + e.message, true);
+                }
+            } finally {
+                appState.isStreaming = false;
+                document.getElementById('sendBtn').style.display = '';
+                document.getElementById('stopBtn').classList.remove('visible');
+            }
+        }
+
+        async function streamResponse(chat, doSearch, doThinking, options = {}) {
+            appState.isStreaming = true;
+            document.getElementById('sendBtn').style.display = 'none';
+            document.getElementById('stopBtn').classList.add('visible');
+
+            abortController = new AbortController();
+
+            let streamingMsgIndex = null;
+
+            try {
+                const apiMessages = [];
+                
+                // If this chat belongs to a project, use project system prompt and docs
+                const chatProject = chat.projectId
+                    ? (appState.projects || []).find(p => p.id === chat.projectId)
+                    : null;
+
+                const { systemPrompt: enhancedSystemPrompt, activatedKeywords } = await buildBenSystemPrompt(chat, chatProject);
+
+                // Prompt-building now lives in buildBenSystemPrompt(); lastUserMessage is still
+                // needed later (URL detection + manual-search source), so recompute it here.
+                const lastUserMessage = chat.messages.length > 0 ? chat.messages[chat.messages.length - 1] : null;
+
                 if (enhancedSystemPrompt) {
                     apiMessages.push({ role: 'system', content: enhancedSystemPrompt });
                 }
@@ -6740,7 +6821,7 @@ Do NOT search for things you already know confidently.`;
                 const imageKeepCount = 3;
                 recentMessages.forEach((msg, index) => {
                     // Skip search seam messages — they're UI-only, not part of the conversation
-                    if (msg.isSearchSeam) return;
+                    if (msg.isSearchSeam || msg.isLibrarySeam) return;
                     // Skip empty assistant messages (can cause alternation errors)
                     if (msg.role === 'assistant' && !msg.content) return;
 
@@ -7248,12 +7329,83 @@ ${braveText || 'No additional context available from search snippets.'}
                             // requires the last message to be from the user.
                             // Instead, build a clean minimal request: system + conversation + 
                             // a synthetic user message delivering the search results.
-                            await streamResponseWithSearchResults(chat, searchQuery, benSearchResults.formattedResults);
+                            await streamContinuation(chat, 'search', searchQuery, benSearchResults.formattedResults);
                         } else {
                             // Search failed — same approach, tell Ben via synthetic user message
-                            await streamResponseWithSearchResults(chat, searchQuery, null);
+                            await streamContinuation(chat, 'search', searchQuery, null);
                         }
                         // Return early — streamResponse handles its own saveState
+                        return;
+                    }
+                }
+
+                // Detect [[LIBRARY: title]] tag — Ben opens a document from his Library.
+                // Mirrors the SEARCH flow: strip the tag, show a seam, fetch the doc by exact
+                // title, then continue via the unified streamContinuation() so Ben keeps his full
+                // context. One doc per turn (the continuation isn't re-scanned for tags, exactly
+                // like search); available in every chat. Needs sign-in (docs live in Supabase).
+                if (supabaseClient && currentUser) {
+                    const libraryTagMatch = chat.messages[chat.messages.length - 1].content.match(/\[\[LIBRARY:\s*([^\]]+)\]\]/i);
+                    if (libraryTagMatch) {
+                        const docTitle = libraryTagMatch[1].trim();
+                        console.log('📖 Ben triggered [[LIBRARY:]]:', docTitle);
+
+                        // Strip ALL library tags from the visible message (only the first is actioned)
+                        chat.messages[chat.messages.length - 1].content =
+                            chat.messages[chat.messages.length - 1].content
+                                .replace(/\[\[LIBRARY:\s*[^\]]+\]\]/gi, '')
+                                .trim();
+                        if (isChatActive(chat)) renderMessages();
+                        saveState();
+
+                        // Transient "opening" indicator
+                        if (isChatActive(chat)) {
+                            const chatArea = document.getElementById('chatArea');
+                            const libSeam = document.createElement('div');
+                            libSeam.id = 'ben-library-seam';
+                            libSeam.className = 'typing-indicator';
+                            libSeam.innerHTML = `<div class="dot"></div><div class="dot"></div><div class="dot"></div><span style="margin-left:10px;">📖 Ben opened: <em>${docTitle}</em></span>`;
+                            chatArea.appendChild(libSeam);
+                            scrollToBottom();
+                        }
+
+                        // Fetch by exact title; must be marked visible to Ben
+                        let docContent = null;
+                        try {
+                            const { data: libRows } = await supabaseClient
+                                .from('studio_notes')
+                                .select('title, content')
+                                .eq('user_id', currentUser.id)
+                                .eq('visible_to_ben', true)
+                                .eq('title', docTitle)
+                                .limit(1);
+                            if (libRows && libRows.length > 0) {
+                                const c = libRows[0].content || '';
+                                docContent = c.trim() ? c : '(this document is currently empty)';
+                            }
+                        } catch (e) {
+                            console.log('Library fetch error:', e.message);
+                        }
+
+                        const libSeamEl = document.getElementById('ben-library-seam');
+                        if (libSeamEl) libSeamEl.remove();
+
+                        // Persist a visible seam marker (clearable via the ✕, like search seams)
+                        chat.messages.push({
+                            role: 'assistant',
+                            content: `📖 *Opened: "${docTitle}"*`,
+                            timestamp: new Date().toISOString(),
+                            isLibrarySeam: true
+                        });
+                        saveState();
+                        if (isChatActive(chat)) renderMessages();
+
+                        // Keep this reply's thinking block visible across the follow-up re-render
+                        if (fullThinking) injectThinkingBlock(fullThinking, streamingMsgIndex, chat);
+
+                        // Continue with the document delivered as a user turn (or a not-found note)
+                        await streamContinuation(chat, 'library', docTitle, docContent);
+                        // Return early — streamContinuation handles its own saveState
                         return;
                     }
                 }
