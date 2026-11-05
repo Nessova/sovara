@@ -1720,8 +1720,7 @@
         }
 
         html.dark .project-header-row {
-            background: var(--bg-tertiary);
-            border-color: var(--border);
+            background: none;
         }
 
         html.dark .project-header-row:hover {
@@ -1796,37 +1795,73 @@
         }
 
         /* ── Projects ───────────────────────────────────────────── */
+        /* Stage 4.1: Projects is now a filled inset block matching the Rooms block
+           (same --sidebar-section fill / --border-light / radius), not a full-bleed
+           bordered band — so the two blocks read as one family. */
         .projects-section {
-            padding: 6px 12px 8px;
+            margin: 8px 12px 4px;
+            padding: 9px 8px;
             background: var(--sidebar-section);
-            border-bottom: 1px solid var(--border-light);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
         }
 
+        /* Match the "ROOMS" label; the + New project control is now a small icon here. */
         .projects-section-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 2px 0 6px;
-            font-size: 10.5px;
-            font-weight: 500;
-            letter-spacing: 0.06em;
+            padding: 2px 6px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
             color: var(--text-muted);
         }
 
+        .projects-add-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px;
+            border-radius: 6px;
+            color: #5e4a2b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 0;
+        }
+
+        .projects-add-btn:hover { background: var(--sidebar-hover); }
+        .projects-add-btn svg { width: 15px; height: 15px; }
+        html.dark .projects-add-btn { color: var(--text-secondary); }
+        html.dark .projects-add-btn:hover { color: var(--text-primary); }
+
         .project-item { margin-bottom: 3px; }
 
+        /* Flat rows on the block (no per-row white card — that double-layer was the
+           "clunky" look); chocolate folder icon replaces the yellow 📁 emoji. */
         .project-header-row {
             display: flex;
             align-items: center;
             padding: 6px 8px;
             cursor: pointer;
             border-radius: 8px;
-            gap: 5px;
-            background: rgba(255,255,255,0.38);
+            gap: 7px;
         }
 
         .project-header-row:hover { background: var(--sidebar-hover); }
+
+        .project-folder-icon {
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            color: #5e4a2b;
+        }
+
+        .project-folder-icon svg { width: 14px; height: 14px; }
+        html.dark .project-folder-icon { color: var(--text-secondary); }
+        .project-header-row:hover .project-folder-icon { color: var(--text-primary); }
 
         .project-toggle {
             font-size: 9px;
@@ -2381,6 +2416,73 @@
             color: var(--text-muted);
         }
 
+        /* Stage 4.1: the magnifier that reveals the search field + the filter pill sit
+           together on the right of the Chats header. */
+        .chats-filter-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .chats-search-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 24px;
+            padding: 0;
+            border-radius: 7px;
+            cursor: pointer;
+            color: #5e4a2b;
+            background: var(--sidebar-section);
+            border: 1px solid var(--border-light);
+        }
+
+        .chats-search-toggle:hover { background: var(--sidebar-hover); }
+        .chats-search-toggle svg { width: 14px; height: 14px; }
+        html.dark .chats-search-toggle { color: var(--text-secondary); }
+        html.dark .chats-search-toggle:hover { color: var(--text-primary); }
+        /* Lit when the search field is open. */
+        .chats-filter.search-open .chats-search-toggle {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        /* Collapsed search field — revealed by the magnifier. */
+        .chats-search-field {
+            display: none;
+            align-items: center;
+            gap: 9px;
+            margin: 7px 4px 2px;
+            padding: 0 10px;
+            height: 34px;
+            background: var(--sidebar-section);
+            border: 1px solid var(--border-light);
+            border-radius: 9px;
+        }
+
+        .chats-filter.search-open .chats-search-field { display: flex; }
+        .chats-search-field:focus-within { border-color: var(--accent-alt-dim); }
+        .chats-search-field > svg {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+            color: #5e4a2b;
+        }
+        html.dark .chats-search-field > svg { color: var(--text-muted); }
+
+        .chats-search-clear {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 13px;
+            line-height: 1;
+            padding: 0 2px;
+            flex-shrink: 0;
+        }
+        .chats-search-clear:hover { color: var(--text-primary); }
+
         .chats-filter-toggle {
             display: inline-flex;
             align-items: center;
@@ -2845,15 +2947,17 @@
                 <span class="sidebar-wordmark">Sovara</span>
             </div>
         </div>
-        <!-- Stage 4: filled search block + chocolate magnifier; input keeps its id. -->
-        <div class="sidebar-search-block">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7.5"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" id="chatSearchInput" class="sidebar-search-input" placeholder="Search chats...">
-        </div>
+        <!-- Stage 4.1: search moved off the top (rarely used) into a magnifier toggle
+             in the Chats header — see #chatsSearchField below. Projects is now a filled
+             block matching Rooms; + New project is a small icon in the header. -->
         <div class="projects-section">
-            <div class="projects-section-header"><span>Projects</span></div>
+            <div class="projects-section-header">
+                <span>Projects</span>
+                <button class="projects-add-btn" onclick="createProject()" title="New project">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
+            </div>
             <div id="projectsList"></div>
-            <button class="new-project-btn" onclick="createProject()">＋ New project</button>
         </div>
         <!-- Stage 4: Chats filter — folders/starred behind a popover (replaces the
              old #folderBar chip row). renderFolderBar() fills #chatsFilterMenu and
@@ -2861,10 +2965,22 @@
         <div class="chats-filter" id="chatsFilter">
             <div class="chats-filter-head">
                 <span class="chats-filter-label">Chats</span>
-                <button class="chats-filter-toggle" id="chatsFilterToggle" aria-haspopup="true" aria-expanded="false">
-                    <span id="chatsFilterCurrent">All</span>
-                    <svg class="chats-filter-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-                </button>
+                <div class="chats-filter-controls">
+                    <button class="chats-search-toggle" id="chatsSearchToggle" title="Search chats" aria-label="Search chats">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7.5"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    </button>
+                    <button class="chats-filter-toggle" id="chatsFilterToggle" aria-haspopup="true" aria-expanded="false">
+                        <span id="chatsFilterCurrent">All</span>
+                        <svg class="chats-filter-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                    </button>
+                </div>
+            </div>
+            <!-- Collapsed by default; the magnifier toggles it. Input keeps its id so the
+                 renderChatList filter + listener are unchanged. Clear/close empties it. -->
+            <div class="chats-search-field" id="chatsSearchField">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7.5"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="chatSearchInput" class="sidebar-search-input" placeholder="Search chats...">
+                <button class="chats-search-clear" id="chatsSearchClear" title="Close search" aria-label="Close search">✕</button>
             </div>
             <div class="chats-filter-menu" id="chatsFilterMenu" role="menu"></div>
         </div>
@@ -4337,9 +4453,14 @@
                 toggle.className = 'project-toggle' + (project.collapsed ? '' : ' open');
                 toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
 
+                // Stage 4.1: chocolate folder icon in place of the yellow 📁 emoji.
+                const folderIcon = document.createElement('span');
+                folderIcon.className = 'project-folder-icon';
+                folderIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5a2 2 0 0 1 2-2h3.2l2 2.3H19a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
+
                 const nameEl = document.createElement('span');
                 nameEl.className = 'project-name';
-                nameEl.textContent = '📁 ' + project.name;
+                nameEl.textContent = project.name;
 
                 const actions = document.createElement('div');
                 actions.className = 'project-actions';
@@ -4359,6 +4480,7 @@
                 actions.appendChild(settingsBtn);
                 actions.appendChild(newChatInProjectBtn);
                 headerRow.appendChild(toggle);
+                headerRow.appendChild(folderIcon);
                 headerRow.appendChild(nameEl);
                 headerRow.appendChild(actions);
 
@@ -4416,12 +4538,6 @@
                         chatsDiv.appendChild(wsItem);
                     }
 
-                    if (projectChats.length === 0 && !project.isTelegramProject && !project.isWorkshopProject) {
-                        const empty = document.createElement('div');
-                        empty.style.cssText = 'font-size:12px; color:var(--text-muted); padding:4px 8px;';
-                        empty.textContent = 'No chats yet — tap 🪶 to start one';
-                        chatsDiv.appendChild(empty);
-                    }
 
                     projectChats.forEach(chat => {
                         const chatItem = document.createElement('div');
@@ -5898,12 +6014,13 @@
                         else { closeHomeView(); newChat(); }
                         break;
                     case 'search':
-                        // Into the chat view with all chats, then focus the chat search box.
+                        // Into the chat view with all chats, then open + focus the
+                        // (now collapsed) chat search field.
                         closeHomeView();
                         appState.activeFolder = 'all';
                         renderChatList();
                         renderMessages();
-                        { const s = document.getElementById('chatSearchInput'); if (s) s.focus(); }
+                        openChatsSearch();
                         break;
                     case 'chatlist':
                         closeHomeView();
@@ -6224,8 +6341,40 @@
                 if (wrap.classList.contains('open') && !wrap.contains(e.target)) closeChatsFilter();
             });
             document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') closeChatsFilter();
+                if (e.key === 'Escape') { closeChatsFilter(); closeChatsSearch(); }
             });
+
+            // Search is collapsed behind the magnifier (Stage 4.1). The input keeps its
+            // id so the existing input->renderChatList listener is unchanged.
+            const searchToggle = document.getElementById('chatsSearchToggle');
+            const searchClear = document.getElementById('chatsSearchClear');
+            if (searchToggle) {
+                searchToggle.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    wrap.classList.contains('search-open') ? closeChatsSearch() : openChatsSearch();
+                });
+            }
+            if (searchClear) {
+                searchClear.addEventListener('click', (e) => { e.stopPropagation(); closeChatsSearch(); });
+            }
+        }
+
+        // Reveal / hide the collapsed search field. Closing clears it so the list
+        // returns to full — no hidden filter left behind.
+        function openChatsSearch() {
+            const wrap = document.getElementById('chatsFilter');
+            const input = document.getElementById('chatSearchInput');
+            if (!wrap) return;
+            wrap.classList.add('search-open');
+            if (input) input.focus();
+        }
+
+        function closeChatsSearch() {
+            const wrap = document.getElementById('chatsFilter');
+            const input = document.getElementById('chatSearchInput');
+            if (!wrap) return;
+            wrap.classList.remove('search-open');
+            if (input && input.value) { input.value = ''; renderChatList(); }
         }
 
         function addFolder() {
