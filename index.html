@@ -542,6 +542,78 @@
             background: var(--bg-hover);
         }
 
+        /* ── Topbar ··· overflow menu ─────────────────────────────────────────
+           The five old loose topbar icons (trim/thinking/summarise/export/new-chat) now
+           live inside this dropdown, collapsed behind one ··· button (locked mockup:
+           model pill + one ···). The five buttons KEEP their original ids + click
+           handlers untouched — this is purely where they sit in the DOM, plus a small
+           open/close toggle. ─────────────────────────────────────────────────────────── */
+        .topbar-menu-wrap {
+            position: relative;
+            margin-left: auto;   /* push the ··· to the right of the model pill */
+        }
+
+        .topbar-menu-toggle {
+            background: none;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 8px;
+            letter-spacing: 1px;
+        }
+        .topbar-menu-toggle:hover,
+        .topbar-menu-wrap.open .topbar-menu-toggle {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+            border-color: var(--border);
+        }
+
+        /* The popover. Hidden by default; .open on the wrap reveals it. */
+        .topbar-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            min-width: 196px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(120,95,55,0.16);
+            padding: 6px;
+            display: none;
+            flex-direction: column;
+            gap: 2px;
+            z-index: 150;
+        }
+        .topbar-menu-wrap.open .topbar-menu { display: flex; }
+
+        /* Each of the five actions, restyled from a bare icon into an icon+label row.
+           They keep .icon-btn (and their ids) so nothing else has to change; .topbar-menu
+           .icon-btn overrides the bare-icon look into a full-width left-aligned row. */
+        .topbar-menu .icon-btn {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            width: 100%;
+            padding: 9px 12px;
+            border-radius: 8px;
+            font-size: 16px;            /* the leading emoji */
+            color: var(--text-secondary);
+            text-align: left;
+        }
+        .topbar-menu .icon-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+        /* The label text beside each emoji (added in the markup via a <span>). */
+        .topbar-menu .icon-btn .tm-label {
+            font-size: 14px;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+
         /* ── Chat Area & Messages ────────────────────────────────────────── */
 
         .summary-message {
@@ -692,16 +764,19 @@
         }
 
         /* Ben: no bubble at all. Transparent, no padding, no radius, no border — his text
-           reads as open prose on the page. Slightly larger/airier than the user bubble,
-           matching the mockup's .ben .txt (15.5px / 1.7). The .editing override still
-           stretches the bubble full-width when Ben's message is being corrected in place;
-           the edit textarea brings its own box, so flat-when-idle is harmless there. */
+           reads as open prose on the page. NO font-size here on purpose: a two-class
+           selector (0,2,0) would out-specify the global `.message-bubble { font-size:1rem }`
+           override far below (0,1,0) and shrink Ben relative to the user's bubble, which
+           inherits that 1rem. Leaving it off lets Ben resolve to the SAME 1rem the user
+           bubble does, so the two always match. (line-height is fine to set — nothing else
+           competes for it.) The .editing override still stretches the bubble full-width
+           when Ben's message is being corrected in place; the edit textarea brings its own
+           box, so flat-when-idle is harmless there. */
         .message.assistant .message-bubble {
             background: var(--ai-bubble);
             border: none;
             padding: 0;
             border-radius: 0;
-            font-size: 15.5px;
             line-height: 1.7;
             color: var(--text-primary);
         }
@@ -2461,12 +2536,17 @@
                 <select class="model-select" id="modelSelect"></select>
                 <span class="model-select-arrow">▼</span>
             </div>
-            <div class="topbar-actions">
-                <button class="icon-btn" id="trimChatBtn" title="Trim chat history" style="font-size:16px;">✂️</button>
-                <button class="icon-btn" id="thinkingBtn" title="Enable extended thinking for next message" style="font-size:16px;">💭</button>
-                <button class="icon-btn" id="summariseBtn" title="Summarise this chat" style="font-size:16px;">📝</button>
-                <button class="icon-btn" id="exportBtn" title="Export">↓</button>
-                <button class="icon-btn" id="newChatBtn" title="New chat">🪶</button>
+            <!-- The five topbar actions are collapsed behind one ··· menu (locked mockup).
+                 Each button keeps its original id + handler — only its home and label change. -->
+            <div class="topbar-menu-wrap" id="topbarMenuWrap">
+                <button class="topbar-menu-toggle" id="topbarMenuToggle" title="More actions" aria-haspopup="true" aria-expanded="false">⋯</button>
+                <div class="topbar-menu" id="topbarMenu" role="menu">
+                    <button class="icon-btn" id="newChatBtn" title="New chat" role="menuitem">🪶 <span class="tm-label">New chat</span></button>
+                    <button class="icon-btn" id="summariseBtn" title="Summarise this chat" role="menuitem">📝 <span class="tm-label">Summarise chat</span></button>
+                    <button class="icon-btn" id="thinkingBtn" title="Enable extended thinking for next message" role="menuitem">💭 <span class="tm-label">Extended thinking</span></button>
+                    <button class="icon-btn" id="exportBtn" title="Export" role="menuitem">↓ <span class="tm-label">Export chat</span></button>
+                    <button class="icon-btn" id="trimChatBtn" title="Trim chat history" role="menuitem">✂️ <span class="tm-label">Trim history</span></button>
+                </div>
             </div>
         </div>
 
@@ -2889,6 +2969,7 @@
             document.getElementById('sidebarFooterToggle').addEventListener('click', toggleFooterCollapse);
             document.getElementById('sidebarNewChat').addEventListener('click', newChat);
             document.getElementById('newChatBtn').addEventListener('click', newChat);
+            setupTopbarMenu();
             document.getElementById('homeBtn').addEventListener('click', () => { closeSidebar(); openHomeView(); });
             document.getElementById('studioBtn').addEventListener('click', openStudioView);
             document.getElementById('tokensBtn').addEventListener('click', openTokensView);
@@ -5788,6 +5869,54 @@
             // Other model families should use their normal/default behaviour.
             const id = (modelId || '').toLowerCase();
             return id.includes('deepseek') || id.includes('qwen3.8');
+        }
+
+        // ── Topbar ··· overflow menu ──────────────────────────────────────
+        // Self-contained open/close for the topbar dropdown that now holds the five
+        // former loose icons. Does NOT touch any of their handlers (those are wired
+        // separately, by id, and fire exactly as before). The only new behaviour:
+        // toggle the popover, close it on an outside click or Escape, and close it
+        // after any action inside is chosen (click bubbles up to the menu container).
+        function openTopbarMenu() {
+            const wrap = document.getElementById('topbarMenuWrap');
+            const toggle = document.getElementById('topbarMenuToggle');
+            if (!wrap) return;
+            wrap.classList.add('open');
+            if (toggle) toggle.setAttribute('aria-expanded', 'true');
+        }
+
+        function closeTopbarMenu() {
+            const wrap = document.getElementById('topbarMenuWrap');
+            const toggle = document.getElementById('topbarMenuToggle');
+            if (!wrap) return;
+            wrap.classList.remove('open');
+            if (toggle) toggle.setAttribute('aria-expanded', 'false');
+        }
+
+        function setupTopbarMenu() {
+            const wrap = document.getElementById('topbarMenuWrap');
+            const toggle = document.getElementById('topbarMenuToggle');
+            const menu = document.getElementById('topbarMenu');
+            if (!wrap || !toggle || !menu) return;
+
+            toggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                wrap.classList.contains('open') ? closeTopbarMenu() : openTopbarMenu();
+            });
+
+            // A click on any menu item runs that item's own handler (unchanged), then
+            // this bubbled listener closes the menu. Thinking is the one item that may
+            // keep the menu context open conceptually, but closing is fine — its state
+            // lives in thinkingEnabled, not the menu.
+            menu.addEventListener('click', () => closeTopbarMenu());
+
+            // Outside click / Escape close.
+            document.addEventListener('click', (e) => {
+                if (wrap.classList.contains('open') && !wrap.contains(e.target)) closeTopbarMenu();
+            });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') closeTopbarMenu();
+            });
         }
 
         function updateThinkingButton() {
