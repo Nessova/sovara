@@ -2168,6 +2168,136 @@
             border-color: #4A3C36 !important;
             color: var(--text-primary) !important;
         }
+
+        /* ── Home / Landing view ─────────────────────────────────────────── */
+        /* The one sidebar-less screen (the launch screen). Takes over #chatArea
+           like every other top-level view, but additionally hides the sidebar +
+           topbar. Colours here are the LOCKED landing palette (redesign-brief /
+           landing-mockup), deliberately self-contained — they are not the themeable
+           :root vars the rest of the app reads, because the landing is a decided,
+           fixed surface with its own warm card tones. Everything here is scoped to
+           body.home-active / #homeView so it can't leak into other views. */
+
+        /* Desktop: drop the always-on sidebar and its margin while on home. The
+           per-device collapse machinery (.sidebar.collapsed / sidebarExpandBtn) is
+           untouched — this is a view-state overlay on top of it. Mobile (<768px)
+           already shows no sidebar at rest, so it needs none of this. */
+        @media (min-width: 768px) {
+            body.home-active .sidebar { transform: translateX(-100%); }
+            body.home-active .app-container { margin-left: 0; }
+            body.home-active .sidebar-expand-btn { display: none !important; }
+        }
+        /* Topbar belongs to the chat view; the landing has its own top row. */
+        body.home-active .topbar { display: none; }
+        /* Input area is hidden by openHomeView() like the other read-only views,
+           but belt-and-braces in case a stray render shows it. */
+        body.home-active .input-area { display: none; }
+
+        #homeView {
+            height: 100%;
+            overflow-y: auto;
+            background: #FDFCF9;
+        }
+        html.dark #homeView { background: var(--bg-primary); }
+
+        .home-inner {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 28px 20px 48px;
+        }
+
+        .home-top {
+            display: flex;
+            align-items: center;
+            margin-bottom: 26px;
+        }
+        .home-brand { display: flex; align-items: center; gap: 13px; }
+        .home-licon { width: 42px; height: 42px; flex-shrink: 0; }
+        .home-wm { font-size: 29px; font-weight: 700; color: #352e24; }
+        html.dark .home-wm { color: var(--text-primary); }
+        .home-tr { margin-left: auto; display: flex; gap: 10px; }
+        .home-tbtn {
+            width: 38px; height: 38px;
+            border-radius: 10px;
+            background: #ECE5D6;
+            border: 1px solid #DED4C2;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            padding: 0;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .home-tbtn:hover { background: #E2D8C4; border-color: #CDBFA6; }
+        .home-tbtn svg { width: 19px; height: 19px; }
+        html.dark .home-tbtn { background: var(--bg-tertiary); border-color: var(--border); }
+        html.dark .home-tbtn:hover { background: #4A3C36; }
+
+        .home-welcome { font-size: 20px; font-weight: 600; color: #4a4134; }
+        html.dark .home-welcome { color: var(--text-secondary); }
+        .home-date { font-size: 13px; color: #9a8c78; margin: 3px 0 22px; }
+        html.dark .home-date { color: var(--text-muted); }
+
+        .home-hero {
+            height: 112px;
+            border-radius: 18px;
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 22px;
+            box-shadow: 0 6px 20px rgba(120,95,55,.12);
+            display: flex; align-items: center;
+            cursor: pointer;
+            border: none;
+            width: 100%;
+            padding: 0;
+            text-align: left;
+            font-family: inherit;
+        }
+        .home-hero:hover { box-shadow: 0 8px 26px rgba(120,95,55,.18); }
+        .home-hero .home-hero-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+        .home-hero .home-hero-txt { position: relative; padding: 0 30px; }
+        .home-hero .hh-t {
+            font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+            color: #7a6442; font-weight: 700;
+        }
+        .home-hero .hh-n { font-size: 21px; font-weight: 600; color: #312a1f; margin-top: 3px; }
+        .home-hero .hh-m { font-size: 13px; color: #7c6e58; margin-top: 2px; }
+
+        .home-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 860px) { .home-grid { grid-template-columns: 1fr 1fr; } }
+        @media (max-width: 560px) { .home-grid { grid-template-columns: 1fr; } }
+
+        .home-card {
+            background: #FFFFFF;
+            border: 1px solid #EEE7DA;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 5px 16px rgba(120,95,55,.09);
+            cursor: pointer;
+            text-align: left;
+            padding: 0;
+            font-family: inherit;
+            width: 100%;
+            transition: transform 0.12s ease, box-shadow 0.15s ease;
+        }
+        .home-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(120,95,55,.15); }
+        html.dark .home-card { background: var(--bg-secondary); border-color: var(--border); }
+        .home-card-art { height: 114px; position: relative; overflow: hidden; }
+        .home-card-art svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+        .home-card-body { padding: 13px 16px 16px; }
+        .home-card-ct { font-size: 16px; font-weight: 600; color: #312a20; }
+        html.dark .home-card-ct { color: var(--text-primary); }
+        .home-card-cs { font-size: 12.5px; color: #9a8c78; margin-top: 2px; }
+        html.dark .home-card-cs { color: var(--text-muted); }
+        .home-reddot {
+            position: absolute; top: 12px; right: 12px;
+            width: 9px; height: 9px; border-radius: 50%;
+            background: #D8564E;
+            box-shadow: 0 0 0 3px rgba(216,86,78,.18);
+            z-index: 2;
+        }
     </style>
     <!-- PDF.js library for client-side PDF text extraction -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -2220,6 +2350,7 @@
                 <span class="sidebar-footer-toggle-chevron">▾</span>
             </button>
             <div class="sidebar-footer-items">
+                <button class="sidebar-btn" id="homeBtn">🏠 Home</button>
                 <button class="sidebar-btn" id="studioBtn">📖 Library</button>
                 <button class="sidebar-btn" id="journalBtn">📓 Journal</button>
                 <button class="sidebar-btn" id="darkModeBtn">🌙 Dark Mode</button>
@@ -2638,6 +2769,7 @@
         let viewingSettings = false;   // true when Settings full page is open (replaces the old modal)
         let settingsSnapshot = null;   // raw field values at page-open/last-save, for dirty checking
         let settingsPendingNav = null; // callback to run once Settings' own unsaved-changes prompt is resolved
+        let viewingHome = false;       // true when the Home/landing view is open (the launch screen; the one sidebar-less view)
 
         window.addEventListener('beforeunload', function(e) {
             if (studioHasUnsavedChanges() || settingsHasUnsavedChanges()) {
@@ -2688,6 +2820,7 @@
             document.getElementById('sidebarFooterToggle').addEventListener('click', toggleFooterCollapse);
             document.getElementById('sidebarNewChat').addEventListener('click', newChat);
             document.getElementById('newChatBtn').addEventListener('click', newChat);
+            document.getElementById('homeBtn').addEventListener('click', () => { closeSidebar(); openHomeView(); });
             document.getElementById('studioBtn').addEventListener('click', openStudioView);
             document.getElementById('tokensBtn').addEventListener('click', openTokensView);
             document.getElementById('studioUnsavedClose').addEventListener('click', closeStudioUnsavedModal);
@@ -2874,10 +3007,11 @@
             }
 
             renderChatList();
-            if (appState.activeChatId) {
-                loadChat(appState.activeChatId);
-            }
-            
+            // Land on the Home view every launch (decided behaviour) rather than
+            // auto-opening the last active chat. Home reads no chat state, so this
+            // leaves the sync/first-contact-pull path entirely untouched.
+            openHomeView();
+
             // Check for proactive messages on load
             if (currentUser && appState.proactiveEnabled) {
                 await checkProactiveMessages();
@@ -2892,7 +3026,12 @@
             setInterval(async () => {
                 if (!currentUser || appState.isStreaming || appState.isSummarising) return;
                 await syncFromCloud();
-                if (viewingStudio) {
+                if (viewingHome) {
+                    // Leave #chatArea alone — the home view is static presentation and
+                    // reads no chat state, so (like Settings) there's nothing to refresh
+                    // in the background. Without this branch it falls through to
+                    // renderMessages() and the landing gets wiped on the next poll.
+                } else if (viewingStudio) {
                     // Never touch #chatArea while a note may be open for editing —
                     // just refresh the list cache if that's what's showing.
                     if (studioMode === 'list') await studioFetchNotes();
@@ -2920,7 +3059,9 @@
             document.addEventListener('visibilitychange', async () => {
                 if (document.visibilityState === 'visible' && currentUser && !appState.isStreaming && !appState.isSummarising) {
                     await syncFromCloud();
-                    if (viewingStudio) {
+                    if (viewingHome) {
+                        // Leave the landing alone — static view, same as the poll above.
+                    } else if (viewingStudio) {
                         if (studioMode === 'list') await studioFetchNotes();
                     } else if (viewingTokens) {
                         await tokensFetchAndRender();
@@ -3470,6 +3611,7 @@
 
         function loadChat(chatId) {
             if (guardStudioNav(() => loadChat(chatId))) return;
+            if (viewingHome) closeHomeView();
             if (viewingStudio) closeStudioView();
             if (viewingTokens) closeTokensView();
             if (viewingTelegram) closeTelegramView();
@@ -3679,6 +3821,7 @@
                         tgItem.innerHTML = '📱 <span class="project-chat-title">Telegram</span>';
                         tgItem.onclick = () => {
                             if (guardStudioNav(() => tgItem.onclick())) return;
+                            if (viewingHome) closeHomeView();
                             if (viewingStudio) closeStudioView();
                             if (viewingTokens) closeTokensView();
                             if (viewingSettings) closeSettingsPageForce();
@@ -3699,6 +3842,7 @@
                         wsItem.innerHTML = '🌙 <span class="project-chat-title">Workshop Sessions</span>';
                         wsItem.onclick = () => {
                             if (guardStudioNav(() => wsItem.onclick())) return;
+                            if (viewingHome) closeHomeView();
                             if (viewingStudio) closeStudioView();
                             if (viewingTokens) closeTokensView();
                             if (viewingSettings) closeSettingsPageForce();
@@ -4451,6 +4595,7 @@
 
         async function openStudioView() {
             if (guardStudioNav(openStudioView)) return;
+            if (viewingHome) closeHomeView();
             if (viewingTelegram) closeTelegramView();
             if (viewingWorkshop) closeWorkshopView();
             if (viewingTokens) closeTokensView();
@@ -4840,6 +4985,7 @@
 
         async function openTokensView() {
             if (guardStudioNav(openTokensView)) return;
+            if (viewingHome) closeHomeView();
             if (viewingTelegram) closeTelegramView();
             if (viewingWorkshop) closeWorkshopView();
             if (viewingStudio) closeStudioView();
@@ -4988,6 +5134,256 @@
             } catch (e) {
                 console.log('Tokens badge refresh:', e.message);
             }
+        }
+
+        // ────────────────────────────────────────────────────────────
+
+        // ── HOME / LANDING VIEW ───────────────────────────────────────────
+        // The launch screen (landed on every time) and the one sidebar-less view.
+        // Top-level view like Library/Tokens/Settings: takes over #chatArea, closes
+        // its siblings, and — via body.home-active — hides the sidebar + topbar too.
+        // Cards route into the existing open-functions; it reads no chat state of its
+        // own, so like Settings its sync-poll/visibilitychange branch is "leave
+        // #chatArea alone". Needs no sign-in (unlike Library/Tokens) — the cards just
+        // route; any card that needs the backend handles that itself when opened.
+
+        // SVG drawings are lifted verbatim from landing-mockup.html (the locked source)
+        // so the build matches what Ness signed off on, rather than being redrawn.
+        const HOME_SVG = {
+            logo: `<svg class="home-licon" viewBox="0 0 512 512"><defs>
+                <clipPath id="homeHdr"><circle cx="256" cy="256" r="256"/></clipPath>
+                <linearGradient id="homeDb" x1="0" y1="0" x2="0.25" y2="1"><stop offset="0%" stop-color="#6e6154"/><stop offset="45%" stop-color="#483c33"/><stop offset="100%" stop-color="#211a14"/></linearGradient>
+                <linearGradient id="homeDl" x1="0.1" y1="0" x2="0.9" y2="1"><stop offset="0%" stop-color="#352a21"/><stop offset="60%" stop-color="#271f18"/><stop offset="100%" stop-color="#1a140f"/></linearGradient>
+                <linearGradient id="homeDs" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#f7efdf" stop-opacity="0"/><stop offset="60%" stop-color="#fffbf0" stop-opacity=".92"/><stop offset="100%" stop-color="#f7efdf" stop-opacity="0"/></linearGradient>
+                <filter id="homeHbl" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="26"/></filter></defs>
+                <g clip-path="url(#homeHdr)"><rect width="512" height="512" fill="url(#homeDb)"/>
+                <path d="M -5 305 C 150 255, 300 365, 517 155 L 517 520 L -5 520 Z" fill="url(#homeDl)"/>
+                <path d="M -5 305 C 150 255, 300 365, 517 155" fill="none" stroke="url(#homeDs)" stroke-width="42" stroke-linecap="round" filter="url(#homeHbl)"/>
+                <path d="M -5 305 C 150 255, 300 365, 517 155" fill="none" stroke="#fffaf0" stroke-width="4.5" stroke-linecap="round" opacity="0.9"/></g></svg>`,
+            // Topbar icons — drawn in workshop brown (#5e4a2b), matching the mockup.
+            feather: `<svg viewBox="0 0 24 24" fill="none" stroke="#5e4a2b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>`,
+            search: `<svg viewBox="0 0 24 24" fill="none" stroke="#5e4a2b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7.5"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
+            settings: `<svg viewBox="0 0 24 24" fill="none" stroke="#5e4a2b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="7" x2="9" y2="7"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="21" y1="17" x2="10" y2="17"/><circle cx="5.5" cy="7" r="2"/><circle cx="8.5" cy="12" r="2"/><circle cx="6.5" cy="17" r="2"/></svg>`,
+            moon: `<svg viewBox="0 0 24 24" fill="none" stroke="#5e4a2b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>`,
+            heroArt: `<svg class="home-hero-svg" viewBox="0 0 900 112" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="homeHbase" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#F3EBDB"/><stop offset="100%" stop-color="#EBDFC8"/></linearGradient>
+                    <linearGradient id="homeHseam" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#fff4d9" stop-opacity="0"/><stop offset="60%" stop-color="#fffdf5" stop-opacity=".95"/><stop offset="100%" stop-color="#fff4d9" stop-opacity="0"/></linearGradient>
+                </defs>
+                <rect width="900" height="112" fill="url(#homeHbase)"/>
+                <path d="M-10 97 C 340 93, 600 60, 920 34" fill="none" stroke="url(#homeHseam)" stroke-width="3.5"/></svg>`,
+            artChatList: `<svg preserveAspectRatio="none" viewBox="0 0 300 114"><g stroke="#b49a73" stroke-width="2.5" stroke-linecap="round" opacity=".45"><line x1="64" y1="44" x2="236" y2="44"/><line x1="64" y1="60" x2="236" y2="60"/><line x1="64" y1="76" x2="198" y2="76"/></g></svg>`,
+            artLibrary: `<svg preserveAspectRatio="none" viewBox="0 0 300 114"><g opacity=".42">
+                <rect x="112" y="28" width="13" height="68" rx="2" fill="#9c8257"/><rect x="130" y="20" width="13" height="76" rx="2" fill="#b49a70"/><rect x="148" y="32" width="13" height="64" rx="2" fill="#8a7049"/><rect x="166" y="24" width="13" height="72" rx="2" fill="#a98f63"/></g></svg>`,
+            artWorkshop: `<svg style="right:30px;top:24px;width:54px;left:auto;height:auto;position:absolute;inset:auto;" viewBox="0 0 48 48"><circle cx="24" cy="24" r="17" fill="#F0D293"/><circle cx="31" cy="19" r="15" fill="#5a4428"/></svg>`,
+            artJournal: `<svg viewBox="0 0 300 114">
+                <rect x="126" y="36" width="40" height="52" rx="5" fill="#b2946a"/>
+                <rect x="132" y="32" width="40" height="52" rx="5" fill="#d4bc92"/>
+                <g stroke="#a1865c" stroke-width="2.4" stroke-linecap="round"><line x1="140" y1="46" x2="164" y2="46"/><line x1="140" y1="55" x2="164" y2="55"/><line x1="140" y1="64" x2="158" y2="64"/></g>
+                </svg>`,
+            artTokens: `<svg viewBox="0 0 300 114"><g fill="#D7B979">
+                <path d="M108 44 Q150 35 192 44 L192 49 Q150 40 108 49 Z"/>
+                <rect x="116" y="49" width="68" height="3.5" rx="1.5"/>
+                <rect x="121" y="61" width="58" height="5" rx="1"/>
+                <rect x="147" y="52.5" width="6" height="8.5" rx="1"/>
+                <rect x="127" y="52.5" width="7" height="38" rx="1.5"/>
+                <rect x="166" y="52.5" width="7" height="38" rx="1.5"/>
+                </g></svg>`,
+            artProjects: `<svg style="right:28px;top:26px;width:72px;left:auto;height:auto;position:absolute;inset:auto;" viewBox="0 0 48 40"><rect x="4" y="12" width="40" height="26" rx="4" fill="#c2a371"/><rect x="10" y="6" width="30" height="24" rx="4" fill="#d6c094"/></svg>`,
+        };
+
+        async function openHomeView() {
+            if (guardStudioNav(openHomeView)) return;
+            if (viewingTelegram) closeTelegramView();
+            if (viewingWorkshop) closeWorkshopView();
+            if (viewingStudio) closeStudioView();
+            if (viewingTokens) closeTokensView();
+            if (viewingSettings) closeSettingsPageForce();
+
+            closeSidebar();
+            viewingHome = true;
+            appState.activeChatId = null;
+            document.body.classList.add('home-active');
+
+            const inputArea = document.querySelector('.input-area');
+            if (inputArea) inputArea.style.display = 'none';
+
+            renderChatList();
+            homeRenderPage();
+        }
+
+        function closeHomeView() {
+            viewingHome = false;
+            document.body.classList.remove('home-active');
+            const inputArea = document.querySelector('.input-area');
+            if (inputArea) inputArea.style.display = '';
+        }
+
+        // Most-recently-active non-project chat, for the Continue hero. Falls back to
+        // any chat if there are only project chats. Returns null when there are none.
+        function homeMostRecentChat() {
+            const chats = (appState.chats || []).filter(c => c.messages && c.messages.length > 0);
+            if (chats.length === 0) return null;
+            const sorted = [...chats].sort((a, b) =>
+                new Date(b.updated || b.created) - new Date(a.updated || a.created));
+            return sorted.find(c => !c.projectId) || sorted[0];
+        }
+
+        function homeRenderPage() {
+            if (!viewingHome) return;
+            const chatArea = document.getElementById('chatArea');
+            chatArea.innerHTML = '';
+
+            const view = document.createElement('div');
+            view.id = 'homeView';
+
+            // Greeting date — Ness's locale/zone (Townsville, AEST).
+            const now = new Date();
+            const dateLabel = now.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
+
+            // Continue hero data — from state already in memory, no fetch.
+            const recent = homeMostRecentChat();
+            const heroTitle = recent ? (recent.title || 'Untitled chat') : 'Start a conversation';
+            const heroMeta = recent ? ('Active ' + formatDate(recent.updated || recent.created)) : 'No chats yet';
+
+            // Live-ish card status lines, all from in-memory state (no new egress):
+            const nonProjectChats = (appState.chats || []).filter(c => !c.projectId);
+            const chatCount = nonProjectChats.length;
+            const projectCount = (appState.projects || []).length;
+            const chatListSub = chatCount > 0 ? (chatCount + ' chat' + (chatCount === 1 ? '' : 's')) : 'All your chats';
+            const projectsSub = projectCount > 0 ? (projectCount + ' project' + (projectCount === 1 ? '' : 's')) : 'Grouped work';
+
+            // Tokens unread — read the badge the app already keeps current; static text
+            // if it's not showing a count. (The badge itself is refreshed elsewhere.)
+            const badgeEl = document.getElementById('tokensBadge');
+            const badgeShown = badgeEl && badgeEl.style.display !== 'none' && badgeEl.textContent.trim();
+            const tokensSub = badgeShown ? (badgeEl.textContent.trim() + ' unread') : 'Gifts from Ben';
+            const tokensDot = badgeShown ? '<span class="home-reddot"></span>' : '';
+
+            view.innerHTML = `
+              <div class="home-inner">
+                <div class="home-top">
+                  <div class="home-brand">${HOME_SVG.logo}<div class="home-wm">Sovara</div></div>
+                  <div class="home-tr">
+                    <button class="home-tbtn" data-home="newchat" title="New chat">${HOME_SVG.feather}</button>
+                    <button class="home-tbtn" data-home="search" title="Search chats">${HOME_SVG.search}</button>
+                    <button class="home-tbtn" data-home="settings" title="Settings">${HOME_SVG.settings}</button>
+                    <button class="home-tbtn" data-home="dark" title="Dark mode">${HOME_SVG.moon}</button>
+                  </div>
+                </div>
+
+                <div class="home-welcome">Welcome back</div>
+                <div class="home-date">${dateLabel}</div>
+
+                <button class="home-hero" data-home="continue">
+                  ${HOME_SVG.heroArt}
+                  <div class="home-hero-txt">
+                    <div class="hh-t">Continue</div>
+                    <div class="hh-n"></div>
+                    <div class="hh-m"></div>
+                  </div>
+                </button>
+
+                <div class="home-grid">
+                  <button class="home-card" data-home="chatlist">
+                    <div class="home-card-art" style="background:linear-gradient(135deg,#ECE3D0,#DBCDB2)">${HOME_SVG.artChatList}</div>
+                    <div class="home-card-body"><div class="home-card-ct">Chat List</div><div class="home-card-cs" data-sub="chatlist"></div></div>
+                  </button>
+
+                  <button class="home-card" data-home="library">
+                    <div class="home-card-art" style="background:linear-gradient(135deg,#DAC7A7,#C8B088)">${HOME_SVG.artLibrary}</div>
+                    <div class="home-card-body"><div class="home-card-ct">Library</div><div class="home-card-cs">Documents</div></div>
+                  </button>
+
+                  <button class="home-card" data-home="workshop">
+                    <div class="home-card-art" style="background:linear-gradient(to top right,#1a1109,#6f5636)">${HOME_SVG.artWorkshop}</div>
+                    <div class="home-card-body"><div class="home-card-ct">Workshop</div><div class="home-card-cs">Ben's night sessions</div></div>
+                  </button>
+
+                  <button class="home-card" data-home="journal">
+                    <div class="home-card-art" style="background:linear-gradient(135deg,#E5DAC3,#D5C7A8)">${HOME_SVG.artJournal}</div>
+                    <div class="home-card-body"><div class="home-card-ct">Journal</div><div class="home-card-cs">Ben's own space</div></div>
+                  </button>
+
+                  <button class="home-card" data-home="tokens">
+                    ${tokensDot}
+                    <div class="home-card-art" style="background:#F7F0E1">${HOME_SVG.artTokens}</div>
+                    <div class="home-card-body"><div class="home-card-ct">Tokens</div><div class="home-card-cs" data-sub="tokens"></div></div>
+                  </button>
+
+                  <button class="home-card" data-home="projects">
+                    <div class="home-card-art" style="background:linear-gradient(135deg,#ECE3D0,#DBCDB2)">${HOME_SVG.artProjects}</div>
+                    <div class="home-card-body"><div class="home-card-ct">Projects</div><div class="home-card-cs" data-sub="projects"></div></div>
+                  </button>
+                </div>
+              </div>`;
+
+            chatArea.appendChild(view);
+
+            // Set text via textContent (avoids any HTML-injection from chat titles).
+            view.querySelector('.hh-n').textContent = heroTitle;
+            view.querySelector('.hh-m').textContent = heroMeta;
+            view.querySelector('[data-sub="chatlist"]').textContent = chatListSub;
+            view.querySelector('[data-sub="tokens"]').textContent = tokensSub;
+            view.querySelector('[data-sub="projects"]').textContent = projectsSub;
+
+            // ── Routing ──
+            const go = (action) => {
+                switch (action) {
+                    case 'newchat':  closeHomeView(); newChat(); break;
+                    case 'settings': closeHomeView(); openSettingsPage(); break;
+                    case 'dark':     toggleDarkMode(); break;  // stays on home; just repaints
+                    case 'continue':
+                        if (recent) { closeHomeView(); loadChat(recent.id); }
+                        else { closeHomeView(); newChat(); }
+                        break;
+                    case 'search':
+                        // Into the chat view with all chats, then focus the chat search box.
+                        closeHomeView();
+                        appState.activeFolder = 'all';
+                        renderChatList();
+                        renderMessages();
+                        { const s = document.getElementById('chatSearchInput'); if (s) s.focus(); }
+                        break;
+                    case 'chatlist':
+                        closeHomeView();
+                        appState.activeFolder = 'all';
+                        renderChatList();
+                        renderMessages();
+                        break;
+                    case 'projects':
+                        // Back to the chat view; projects live in the sidebar there.
+                        closeHomeView();
+                        renderChatList();
+                        renderMessages();
+                        break;
+                    case 'library':  closeHomeView(); openStudioView(); break;
+                    case 'tokens':   closeHomeView(); openTokensView(); break;
+                    case 'journal':  closeHomeView(); renderMessages(); openJournal(); break;
+                    case 'workshop': {
+                        const ws = (appState.projects || []).find(p => p.isWorkshopProject);
+                        closeHomeView();
+                        if (ws) {
+                            viewingWorkshop = true;
+                            appState.activeChatId = null;
+                            renderProjectList();
+                            renderChatList();
+                            openWorkshopView();
+                        } else {
+                            // No Workshop project set yet — land in the chat view so the
+                            // sidebar's project area is reachable to create/flag one.
+                            renderChatList();
+                            renderMessages();
+                            showToast('No Workshop project set — flag one in a project\'s settings');
+                        }
+                        break;
+                    }
+                }
+            };
+
+            view.querySelectorAll('[data-home]').forEach(btn => {
+                btn.addEventListener('click', () => go(btn.getAttribute('data-home')));
+            });
         }
 
         // ────────────────────────────────────────────────────────────
@@ -8160,6 +8556,7 @@ ${braveText || 'No additional context available from search snippets.'}
 
         function openSettingsPage() {
             if (guardStudioNav(openSettingsPage)) return;
+            if (viewingHome) closeHomeView();
             if (viewingTelegram) closeTelegramView();
             if (viewingWorkshop) closeWorkshopView();
             if (viewingTokens) closeTokensView();
