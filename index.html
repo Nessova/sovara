@@ -10,31 +10,42 @@
     <style>
         /* ── Root Variables & Reset ──────────────────────────────────────── */
 
+        /* ── LIGHT PALETTE — the LOCKED warm chat-screen palette (redesign-brief /
+           chat-mockup), baked into the themeable :root so it IS the app's light theme.
+           NOT a "hardcoded palette" (that rule is about scattering literals / not reading
+           the vars) — this is the single palette home, and Ness can still tweak here.
+           Dark mode (html.dark block, far below) is deliberately left as-is per the brief.
+           Hex source: chat bg #FDFCF9 · user bubble #F2EDE3 · sidebar #EAE2D1 (sand) ·
+           search/Rooms blocks #F4F2EA · highlight/active #DFD2B9 (clay) · text #2b241f ·
+           input field #F7F0E2 · send button #6b5330 (brown). ──────────────────────────── */
         :root {
-            --bg-primary: #FFFFFF;
-            --bg-secondary: #FFFFFF;
-            --bg-tertiary: #F2F6F1;
-            --bg-hover: #E5EDE2;
-            --text-primary: #241F1B;
-            --text-secondary: #3D3530;
-            --text-muted: #5E5650;
-            --accent: #FBF5EF;
-            --accent-dim: #F7EBDE;
-            --accent-glow: #F2F6F1;
-            --accent-alt: #C7D8C4;
-            --accent-alt-dim: #A4B7A7;
-            --accent-alt-glow: rgba(199, 216, 196, 0.28);
-            --sidebar-bg: #EFF4ED;
-            --sidebar-section: #F6F9F5;
-            --sidebar-hover: #E5EDE2;
-            --user-bubble: #F6F2EE;
-            --ai-bubble: transparent;
-            --border: #E8E2DE;
-            --border-light: #F3EEEA;
+            --bg-primary: #FDFCF9;      /* chat bg; Ben's flowing text sits on this */
+            --bg-secondary: #FDFCF9;    /* topbar + input area bg */
+            --bg-tertiary: #F4F2EA;     /* search/Rooms blocks, model pill, inputs */
+            --bg-hover: #DFD2B9;        /* clay — hover / active row highlight */
+            --text-primary: #2b241f;    /* warm brown body text */
+            --text-secondary: #5f564a;
+            --text-muted: #9a8c74;      /* labels, placeholders */
+            --accent: #6b5330;          /* brown — send button + primary buttons.
+                                           Buttons that put text ON --accent read it via
+                                           --on-accent (pale), since --accent is now dark. */
+            --on-accent: #F7EFDD;       /* pale text/icon sitting ON an --accent bg */
+            --accent-dim: #5a4526;      /* send / primary hover (darker brown) */
+            --accent-glow: #F4ECDC;     /* soft focus glow */
+            --accent-alt: #DFD2B9;      /* clay — doc-edit accept, journal trigger btn */
+            --accent-alt-dim: #b49a73;  /* active borders */
+            --accent-alt-glow: rgba(223, 210, 185, 0.32);
+            --sidebar-bg: #EAE2D1;      /* golden sand */
+            --sidebar-section: #F4F2EA;
+            --sidebar-hover: #DFD2B9;   /* clay */
+            --user-bubble: #F2EDE3;     /* warm cream — only the USER gets a bubble */
+            --ai-bubble: transparent;   /* Ben is bubble-less (flat flowing text) */
+            --border: #E3D9C6;
+            --border-light: #EFE7D7;
             --success: #A4B7A7;
             --danger: #E2AAA0;
             --radius: 12px;
-            --shadow: 0 2px 12px rgba(0,0,0,0.06);
+            --shadow: 0 2px 12px rgba(120,95,55,0.08);
         }
 
         * {
@@ -113,6 +124,20 @@
             color: var(--text-muted);
         }
 
+        /* Keep the warm field colour when the browser autofills it. Opera/Chrome paint a
+           pale-blue background + blue text on autofilled inputs, overriding page CSS — the
+           inset-shadow trick is the standard way to repaint it, and -webkit-text-fill-color
+           restores our text colour (plain `color` loses to autofill). */
+        .login-input:-webkit-autofill,
+        .login-input:-webkit-autofill:hover,
+        .login-input:-webkit-autofill:focus {
+            -webkit-text-fill-color: var(--text-primary);
+            -webkit-box-shadow: 0 0 0 1000px var(--bg-tertiary) inset;
+            box-shadow: 0 0 0 1000px var(--bg-tertiary) inset;
+            caret-color: var(--text-primary);
+            transition: background-color 9999s ease-in-out 0s;
+        }
+
         .sidebar-search-input {
             width: 100%;
             padding: 8px 12px;
@@ -137,7 +162,7 @@
         .login-btn {
             padding: 14px;
             background: var(--accent);
-            color: var(--text-primary);
+            color: var(--on-accent);
             border: none;
             border-radius: 8px;
             font-size: 14px;
@@ -238,9 +263,9 @@
         }
 
         .new-chat-btn {
-            background: #E5EDE2;
-            color: #374C2F;
-            border: none;
+            background: #F4F2EA;
+            color: #5e4a2b;
+            border: 1px solid #E8E3D4;
             width: 36px;
             height: 36px;
             border-radius: 8px;
@@ -250,7 +275,7 @@
         }
 
         .new-chat-btn:hover {
-            background: #D2E0CD;
+            background: #DFD2B9;
         }
 
         .chat-list {
@@ -399,9 +424,9 @@
         }
 
         .header-icon-btn {
-            background: #E5EDE2;
-            color: #374C2F;
-            border: none;
+            background: #F4F2EA;
+            color: #5e4a2b;
+            border: 1px solid #E8E3D4;
             width: 36px;
             height: 36px;
             border-radius: 8px;
@@ -416,7 +441,7 @@
         }
 
         .header-icon-btn:hover {
-            background: #D2E0CD;
+            background: #DFD2B9;
         }
 
         html.dark .header-icon-btn {
@@ -466,19 +491,26 @@
 
         .model-select {
             width: 100%;
-            padding: 10px 36px 10px 12px;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-size: 14px;
+            padding: 8px 34px 8px 14px;
+            background: #F4ECDC;             /* warm model-picker pill — mockup */
+            border: 1px solid #E7DBC4;
+            border-radius: 9px;
+            color: var(--text-secondary);
+            font-size: 13.5px;
+            font-weight: 500;
             cursor: pointer;
             appearance: none;
         }
 
+        html.dark .model-select {
+            background: var(--bg-tertiary);
+            border-color: var(--border);
+            color: var(--text-primary);
+        }
+
         .model-select:focus {
             outline: none;
-            border-color: var(--accent);
+            border-color: var(--accent-alt-dim);
         }
 
         .model-select-arrow {
@@ -600,9 +632,16 @@
             align-items: flex-end;
             margin-left: auto;
             margin-right: 0;
-            max-width: 70%;
+            max-width: 64%;
         }
 
+        /* Ben is bubble-less — his replies flow as open text under the BEN label. He runs
+           the FULL width of the message column (aligning with the right edge of the user's
+           messages), the way he always has — long replies need the room, and the mockup's
+           82% cap was drawn with short sample text, so it read as "ending early" on real
+           replies. The .message-bubble inside stays in the DOM (streaming helpers,
+           formatMessage, copy buttons, thinking block, doc-edit card and the (edited)
+           label all target it) — only its PAINT changes below. */
         .message.assistant {
             align-items: flex-start;
             margin-right: auto;
@@ -610,16 +649,18 @@
         }
 
         .message-label {
-            font-size: 11px;
-            font-weight: 500;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.16em;
             text-transform: uppercase;
-            margin-bottom: 6px;
-            padding: 0 4px;
+            margin-bottom: 7px;
+            padding: 0 2px;
             color: var(--text-muted);
         }
 
         .message.user .message-label {
-            color: var(--accent-dim);
+            color: var(--text-muted);
+            letter-spacing: 0.04em;
         }
 
         .message-bubble {
@@ -636,15 +677,37 @@
             width: 100%;
         }
 
+        /* Only the USER gets a bubble — warm cream, right-aligned, mockup's asymmetric
+           radius (16 16 5 16) + a soft shadow. */
         .message.user .message-bubble {
             background: var(--user-bubble);
-            border-bottom-right-radius: 4px;
+            border: 1px solid #E9E0D0;
+            border-radius: 16px 16px 5px 16px;
+            box-shadow: 0 2px 8px rgba(120,95,55,0.07);
         }
 
+        html.dark .message.user .message-bubble {
+            border-color: var(--border);
+            box-shadow: none;
+        }
+
+        /* Ben: no bubble at all. Transparent, no padding, no radius, no border — his text
+           reads as open prose on the page. Slightly larger/airier than the user bubble,
+           matching the mockup's .ben .txt (15.5px / 1.7). The .editing override still
+           stretches the bubble full-width when Ben's message is being corrected in place;
+           the edit textarea brings its own box, so flat-when-idle is harmless there. */
         .message.assistant .message-bubble {
             background: var(--ai-bubble);
             border: none;
-            border-bottom-left-radius: 4px;
+            padding: 0;
+            border-radius: 0;
+            font-size: 15.5px;
+            line-height: 1.7;
+            color: var(--text-primary);
+        }
+
+        .message.assistant .message-bubble.editing {
+            padding: 0;
         }
 
         .message-bubble p {
@@ -932,7 +995,7 @@
 
         .edit-save-btn {
             background: var(--accent);
-            color: var(--text-primary);
+            color: var(--on-accent);
         }
 
         .edit-save-btn:hover {
@@ -1058,8 +1121,8 @@
 
         .input-field {
             flex: 1;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
+            background: #F7F0E2;             /* warm cream field — mockup; Ness loves this bar */
+            border: 1px solid #E7DBC4;
             border-radius: var(--radius);
             padding: 14px 16px;
             color: var(--text-primary);
@@ -1072,8 +1135,13 @@
             font-family: inherit;
         }
 
+        html.dark .input-field {
+            background: var(--bg-tertiary);
+            border-color: var(--border);
+        }
+
         .input-field:focus {
-            border-color: var(--accent);
+            border-color: var(--accent-alt-dim);
         }
 
         .input-field::placeholder {
@@ -1097,11 +1165,11 @@
         }
 
         .send-btn {
-            background: var(--accent);
+            background: var(--accent);       /* brown #6b5330 — mockup's round send */
             border: none;
             width: 48px;
             height: 48px;
-            border-radius: var(--radius);
+            border-radius: 50%;              /* round, per mockup */
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -1123,7 +1191,7 @@
         .send-btn svg {
             width: 20px;
             height: 20px;
-            fill: var(--text-primary);
+            fill: #F7EFDD;                   /* pale icon on brown — mockup */
             display: block;
             flex-shrink: 0;
             margin: 0;
@@ -1260,7 +1328,7 @@
             width: 100%;
             padding: 14px;
             background: var(--accent);
-            color: var(--text-primary);
+            color: var(--on-accent);
             border: none;
             border-radius: 8px;
             font-size: 14px;
@@ -1348,9 +1416,9 @@
                 width: 36px;
                 height: 36px;
                 border-radius: 8px;
-                background: #E5EDE2;
-                color: #374C2F;
-                border: none;
+                background: #F4F2EA;
+                color: #5e4a2b;
+                border: 1px solid #E8E3D4;
                 font-size: 16px;
                 cursor: pointer;
                 align-items: center;
@@ -1376,7 +1444,7 @@
 
         .folder-tab.active {
             background: var(--accent);
-            color: var(--text-primary);
+            color: var(--on-accent);
             border-color: var(--accent-dim);
         }
 
@@ -1410,6 +1478,7 @@
             --text-secondary: #BFAF9F;
             --text-muted: #8E8074;
             --accent: #3A2F2A;
+            --on-accent: #E6DED6;       /* dark-mode --accent is dark too → light text on it */
             --accent-dim: #4A3C36;
             --accent-glow: rgba(255, 214, 170, 0.06);
             --accent-alt: #3A2E29;
@@ -1810,7 +1879,7 @@
             cursor: pointer;
             font-size: 12px;
             font-family: inherit;
-            color: var(--text-primary);
+            color: var(--on-accent);
         }
 
         /* ── Doc-edit proposal cards ───────────────────────────── */
