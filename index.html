@@ -2147,9 +2147,6 @@
         }
 
         .tokens-badge {
-            position: absolute;
-            top: -4px;
-            right: -4px;
             background: var(--danger);
             color: #fff;
             font-size: 10px;
@@ -2163,6 +2160,116 @@
             padding: 0 4px;
             line-height: 1;
             pointer-events: none;
+            margin-left: 5px;
+            flex-shrink: 0;
+        }
+
+        /* ── Rooms block + utility row (Sidebar Stage 3) ─────────────────────
+           Replaces the old fat footer. Journal/Library/Tokens live in a filled
+           "Rooms" block; Home/Settings/Dark-mode are a thin utility-icon row
+           pinned at the bottom (chat-list's flex:1 does the pinning). The six
+           buttons KEEP their original ids (journalBtn/studioBtn/tokensBtn/homeBtn/
+           settingsBtn/darkModeBtn) so their existing listeners fire unchanged —
+           only their DOM home + look changed, same as the topbar ··· refactor.
+           Block bg / hover / label read the themeable sidebar vars, so dark mode
+           largely just works; the chocolate #5e4a2b icons use stroke/fill
+           currentColor so an html.dark override can repaint them legibly instead
+           of leaving near-invisible chocolate on the dark sidebar. */
+        .rooms-block {
+            margin: 8px 12px 4px;
+            padding: 9px 8px;
+            background: var(--sidebar-section);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+        }
+
+        .rooms-label {
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            font-weight: 600;
+            padding: 2px 6px 8px;
+        }
+
+        .room-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 7px 8px;
+            border: none;
+            background: none;
+            border-radius: 7px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-align: left;
+        }
+
+        .room-row:hover {
+            background: var(--sidebar-hover);
+            color: var(--text-primary);
+        }
+
+        .room-row svg {
+            width: 17px;
+            height: 17px;
+            flex-shrink: 0;
+            color: #5e4a2b;              /* chocolate icon; stroke/fill = currentColor */
+        }
+
+        html.dark .room-row svg {
+            color: var(--text-secondary);
+        }
+
+        html.dark .room-row:hover,
+        html.dark .room-row:hover svg {
+            color: var(--text-primary);
+        }
+
+        .room-label {
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .sidebar-util {
+            display: flex;
+            gap: 8px;
+            padding: 8px 14px 14px;
+        }
+
+        .util-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: var(--sidebar-section);
+            border: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            padding: 0;
+            color: #5e4a2b;             /* chocolate icon; stroke/fill = currentColor */
+        }
+
+        .util-btn:hover {
+            background: var(--sidebar-hover);
+        }
+
+        .util-btn svg {
+            width: 17px;
+            height: 17px;
+        }
+
+        html.dark .util-btn {
+            color: var(--text-secondary);
+        }
+
+        html.dark .util-btn:hover {
+            background: #4A3C36;
+            color: var(--text-primary);
         }
 
         .token-item {
@@ -2454,7 +2561,7 @@
 </head>
 <body>
     <div class="login-screen" id="loginScreen">
-        <div class="login-logo">Chat</div>
+        <div class="login-logo">Sovara</div>
         <div class="login-form">
             <input class="login-input" type="email" id="loginEmail" placeholder="Email">
             <input class="login-input" type="password" id="loginPassword" placeholder="Password">
@@ -2470,10 +2577,6 @@
             <h2>Conversations</h2>
             <div class="sidebar-header-actions">
                 <button class="header-icon-btn" id="logoutBtn" style="display:none" title="Sign Out">🚪</button>
-                <div class="tokens-gate-wrap">
-                    <button class="header-icon-btn" id="tokensBtn" title="Tokens from Ben">⛩️</button>
-                    <span class="tokens-badge" id="tokensBadge" style="display:none"></span>
-                </div>
                 <button class="new-chat-btn" id="sidebarNewChat">+</button>
                 <button class="header-icon-btn" id="sidebarCollapseBtn" title="Collapse sidebar">⏴</button>
             </div>
@@ -2488,18 +2591,36 @@
         </div>
         <div id="folderBar" style="padding: 4px 12px 8px; display:flex; gap:6px; flex-wrap:wrap; align-items:center;"></div>
         <div class="chat-list" id="chatList"></div>
-        <div class="sidebar-footer" id="sidebarFooter">
-            <button class="sidebar-footer-toggle" id="sidebarFooterToggle" title="Show/hide menu">
-                <span>Menu</span>
-                <span class="sidebar-footer-toggle-chevron">▾</span>
+        <!-- Rooms block — Journal / Library / Tokens. Buttons keep their original ids
+             (journalBtn/studioBtn/tokensBtn) so their listeners fire unchanged; icons
+             lifted from chat-mockup.html with stroke/fill="currentColor" for dark mode. -->
+        <div class="rooms-block" id="roomsBlock">
+            <div class="rooms-label">Rooms</div>
+            <button class="room-row" id="journalBtn" title="Journal">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                <span class="room-label">Journal</span>
             </button>
-            <div class="sidebar-footer-items">
-                <button class="sidebar-btn" id="homeBtn">🏠 Home</button>
-                <button class="sidebar-btn" id="studioBtn">📖 Library</button>
-                <button class="sidebar-btn" id="journalBtn">📓 Journal</button>
-                <button class="sidebar-btn" id="darkModeBtn">🌙 Dark Mode</button>
-                <button class="sidebar-btn" id="settingsBtn">⚙️ Settings</button>
-            </div>
+            <button class="room-row" id="studioBtn" title="Library">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+                <span class="room-label">Library</span>
+            </button>
+            <button class="room-row" id="tokensBtn" title="Tokens from Ben">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8 Q12 4.5 21 8"/><line x1="7.5" y1="12" x2="16.5" y2="12"/><line x1="9" y1="8" x2="9" y2="20"/><line x1="15" y1="8" x2="15" y2="20"/></svg>
+                <span class="room-label">Tokens<span class="tokens-badge" id="tokensBadge" style="display:none"></span></span>
+            </button>
+        </div>
+        <!-- Utility row — Home / Settings / Dark mode. Same ids as before; darkModeBtn
+             is now icon-only, so applyDarkMode() swaps its SVG instead of textContent. -->
+        <div class="sidebar-util" id="sidebarUtil">
+            <button class="util-btn" id="homeBtn" title="Home">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/></svg>
+            </button>
+            <button class="util-btn" id="settingsBtn" title="Settings">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="7" x2="9" y2="7"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="21" y1="17" x2="10" y2="17"/><circle cx="5.5" cy="7" r="2"/><circle cx="8.5" cy="12" r="2"/><circle cx="6.5" cy="17" r="2"/></svg>
+            </button>
+            <button class="util-btn" id="darkModeBtn" title="Dark mode">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>
+            </button>
         </div>
     </div>
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -2865,7 +2986,6 @@
         const SUPABASE_KEY_KEY = 'ness_chat_supabase_key';
         const SYNC_WATERMARK_KEY = 'ness_chat_last_seen_cloud';
         const SIDEBAR_COLLAPSED_KEY = 'ness_chat_sidebar_collapsed';
-        const FOOTER_COLLAPSED_KEY = 'ness_chat_footer_collapsed';
         const SYNC_DIVERGENT_BACKUP_PREFIX = 'ness_chat_sync_divergent_backup_';
 
         let appState = {
@@ -2931,7 +3051,6 @@
             loadState();
             applyDarkMode();
             applySidebarCollapse();
-            applyFooterCollapse();
             populateModelDropdown();
             setupEventListeners();
             
@@ -2966,7 +3085,6 @@
             document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar);
             document.getElementById('sidebarCollapseBtn').addEventListener('click', toggleSidebarCollapse);
             document.getElementById('sidebarExpandBtn').addEventListener('click', toggleSidebarCollapse);
-            document.getElementById('sidebarFooterToggle').addEventListener('click', toggleFooterCollapse);
             document.getElementById('sidebarNewChat').addEventListener('click', newChat);
             document.getElementById('newChatBtn').addEventListener('click', newChat);
             setupTopbarMenu();
@@ -5799,17 +5917,25 @@
             saveState();
         }
 
+        // darkModeBtn is now the icon-only utility button, so we swap its SVG (sun when
+        // dark is active, moon when light) rather than setting textContent — which would
+        // wipe the icon. stroke="currentColor" lets the util-btn colour rules theme it.
         function applyDarkMode() {
             const themeMeta = document.querySelector('meta[name="theme-color"]');
+            const btn = document.getElementById('darkModeBtn');
             if (appState.darkMode) {
                 document.documentElement.classList.add('dark');
-                const btn = document.getElementById('darkModeBtn');
-                if (btn) btn.textContent = '☀️ Light Mode';
+                if (btn) {
+                    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><line x1="12" y1="2.5" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21.5"/><line x1="2.5" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21.5" y2="12"/><line x1="5.2" y1="5.2" x2="6.9" y2="6.9"/><line x1="17.1" y1="17.1" x2="18.8" y2="18.8"/><line x1="5.2" y1="18.8" x2="6.9" y2="17.1"/><line x1="17.1" y1="6.9" x2="18.8" y2="5.2"/></svg>';
+                    btn.title = 'Light mode';
+                }
                 if (themeMeta) themeMeta.setAttribute('content', '#1C1714');
             } else {
                 document.documentElement.classList.remove('dark');
-                const btn = document.getElementById('darkModeBtn');
-                if (btn) btn.textContent = '🌙 Dark Mode';
+                if (btn) {
+                    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>';
+                    btn.title = 'Dark mode';
+                }
                 if (themeMeta) themeMeta.setAttribute('content', '#F5F7F5');
             }
         }
@@ -5828,21 +5954,6 @@
             const collapsed = localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1';
             localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '0' : '1');
             applySidebarCollapse();
-        }
-
-        // Studio/Journal/Dark Mode/Settings footer block, collapsible independently of the
-        // whole-sidebar collapse above (this one works on mobile too, since the footer takes
-        // up chat-list room in the drawer just as much as on desktop). Same per-device
-        // localStorage treatment — starts expanded (today's behaviour) unless toggled.
-        function applyFooterCollapse() {
-            const collapsed = localStorage.getItem(FOOTER_COLLAPSED_KEY) === '1';
-            document.getElementById('sidebarFooter').classList.toggle('collapsed', collapsed);
-        }
-
-        function toggleFooterCollapse() {
-            const collapsed = localStorage.getItem(FOOTER_COLLAPSED_KEY) === '1';
-            localStorage.setItem(FOOTER_COLLAPSED_KEY, collapsed ? '0' : '1');
-            applyFooterCollapse();
         }
 
         function toggleSearchMode() {
