@@ -1024,9 +1024,37 @@
             background: rgba(233, 216, 217, 0.12);
         }
 
+        /* Stage 5: message-action icons are chocolate line SVGs (currentColor).
+           The star is the one with a lit state — .starred paints it warm gold
+           (fill + stroke via currentColor), replacing the old sepia/hue-rotate
+           filter hack that tinted the ⭐/☆ emoji. */
+        .message-action-btn svg {
+            width: 16px;
+            height: 16px;
+            display: block;
+            color: #5e4a2b;
+        }
+
+        html.dark .message-action-btn svg {
+            color: var(--text-secondary);
+        }
+
         .message-action-btn.starred {
             opacity: 1;
-            filter: sepia(1) saturate(4) hue-rotate(5deg);
+        }
+
+        .message-action-btn.starred svg {
+            color: #C99A3A;              /* warm gold for a lit star */
+        }
+
+        html.dark .message-action-btn.starred svg {
+            color: #D7B979;
+        }
+
+        /* Delete is the one destructive action in the row — it turns danger-red on
+           hover, carrying the signal the old red ❌ emoji used to give for free. */
+        .message-action-btn.msg-action-delete:hover svg {
+            color: var(--danger);
         }
 
         .message.starred-message .message-meta {
@@ -2905,6 +2933,98 @@
             box-shadow: 0 0 0 3px rgba(216,86,78,.18);
             z-index: 2;
         }
+
+        /* ── ICON SWEEP (Stage 5) ────────────────────────────────────────────
+           The last traditional/emoji glyphs redrawn to the chocolate #5e4a2b
+           inline-SVG set, matching the Rooms/utility icons from Stages 3–4. Every
+           swept SVG uses stroke/fill="currentColor"; these rules set the resting
+           colour to chocolate in light and to --text-secondary under html.dark, so
+           dark mode repaints them legibly (chocolate would vanish on the dark
+           sidebar/panels). Buttons kept their ids/classes/handlers — paint only. */
+
+        /* Topbar ··· menu rows — leading glyph is now an SVG beside the .tm-label. */
+        .topbar-menu .icon-btn svg {
+            width: 17px;
+            height: 17px;
+            flex-shrink: 0;
+            color: #5e4a2b;
+        }
+        html.dark .topbar-menu .icon-btn svg { color: var(--text-secondary); }
+        .topbar-menu .icon-btn:hover svg { color: var(--text-primary); }
+
+        /* Input bar — attach (paperclip) + web-search (magnifier). The buttons keep
+           their 48px box + border; the SVG centres inside. searchToggleBtn's ON
+           state still recolours via its inline button background (toggleSearchMode). */
+        .attach-btn svg {
+            width: 20px;
+            height: 20px;
+            display: block;
+            margin: 0 auto;
+            color: #5e4a2b;
+        }
+        .attach-btn:hover svg { color: var(--accent); }
+        html.dark .attach-btn svg { color: var(--text-secondary); }
+        html.dark .attach-btn:hover svg { color: var(--text-primary); }
+
+        /* Journal "Write entry" trigger — drawn nib beside its label span. */
+        .journal-trigger-nib { color: var(--text-primary); }
+
+        /* Chat-item actions (move-to-folder + rename pencil) + the folder label. */
+        .chat-rename svg,
+        .chat-item-folder .cif-icon svg {
+            width: 15px;
+            height: 15px;
+            display: block;
+            color: #5e4a2b;
+        }
+        .chat-rename:hover svg { color: var(--accent); }
+        html.dark .chat-rename svg,
+        html.dark .chat-item-folder .cif-icon svg { color: var(--text-secondary); }
+        html.dark .chat-rename:hover svg { color: var(--text-primary); }
+
+        .chat-item-folder {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .chat-item-folder .cif-icon {
+            display: inline-flex;
+            flex-shrink: 0;
+        }
+
+        /* Project action buttons (⚙️ settings / 🪶 new chat) + project-chat pencil. */
+        .project-icon-btn svg {
+            width: 14px;
+            height: 14px;
+            display: block;
+            color: #5e4a2b;
+        }
+        .project-icon-btn:hover svg { color: var(--text-primary); }
+        html.dark .project-icon-btn svg { color: var(--text-secondary); }
+        html.dark .project-icon-btn:hover svg { color: var(--text-primary); }
+
+        /* The project-chat rename pencil shares .project-chat-delete with the ✕
+           (which stays a text glyph); this rule only ever matches the SVG pencil. */
+        .project-chat-delete svg {
+            width: 13px;
+            height: 13px;
+            display: block;
+            color: var(--text-muted);
+        }
+        .project-chat-delete:hover svg { color: var(--text-primary); }
+
+        /* Structural view/modal headings — a chocolate icon before the title text.
+           Scoped class so the 6 heading sites share one sizing/colour home. */
+        .heading-icon {
+            display: inline-flex;
+            align-items: center;
+            flex-shrink: 0;
+            margin-right: 9px;
+            vertical-align: -3px;
+            color: #5e4a2b;
+        }
+        .heading-icon svg { width: 20px; height: 20px; display: block; }
+        html.dark .heading-icon { color: var(--text-secondary); }
     </style>
     <!-- PDF.js library for client-side PDF text extraction -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -3037,7 +3157,7 @@
     <div class="modal-overlay" id="journalModal">
         <div class="modal">
             <div class="modal-header">
-                <h2>📓 Journal</h2>
+                <h2><span class="heading-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>Journal</h2>
                 <button class="modal-close" id="journalClose">✕</button>
             </div>
             <div class="modal-body">
@@ -3048,7 +3168,7 @@
                     <select id="journalChatPicker" style="flex:1; min-width:0; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg-tertiary); color:var(--text-primary); font-size:13px; font-family:inherit;">
                         <option value="">— Most recent chat —</option>
                     </select>
-                    <button id="journalTriggerBtn" style="padding:8px 14px; border-radius:8px; border:none; background:var(--accent-alt); color:var(--text-primary); font-size:13px; font-family:inherit; font-weight:500; cursor:pointer; white-space:nowrap;">✍ Write entry</button>
+                    <button id="journalTriggerBtn" style="padding:8px 14px; border-radius:8px; border:none; background:var(--accent-alt); color:var(--text-primary); font-size:13px; font-family:inherit; font-weight:500; cursor:pointer; white-space:nowrap; display:inline-flex; align-items:center; gap:7px;"><svg class="journal-trigger-nib" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M4 20l1-4L15.5 5.5a2.1 2.1 0 0 1 3 3L8 19z"/><line x1="13.5" y1="7.5" x2="16.5" y2="10.5"/><line x1="5" y1="16" x2="8" y2="19"/></svg><span class="journal-trigger-label">Write entry</span></button>
                 </div>
                 <div id="journalEntriesList" style="display:flex; flex-direction:column; gap:16px;">
                     <p style="color:var(--text-muted); font-size:14px;">Loading entries...</p>
@@ -3069,11 +3189,11 @@
             <div class="topbar-menu-wrap" id="topbarMenuWrap">
                 <button class="topbar-menu-toggle" id="topbarMenuToggle" title="More actions" aria-haspopup="true" aria-expanded="false">⋯</button>
                 <div class="topbar-menu" id="topbarMenu" role="menu">
-                    <button class="icon-btn" id="newChatBtn" title="New chat" role="menuitem">🪶 <span class="tm-label">New chat</span></button>
-                    <button class="icon-btn" id="summariseBtn" title="Summarise this chat" role="menuitem">📝 <span class="tm-label">Summarise chat</span></button>
-                    <button class="icon-btn" id="thinkingBtn" title="Enable extended thinking for next message" role="menuitem">💭 <span class="tm-label">Extended thinking</span></button>
-                    <button class="icon-btn" id="exportBtn" title="Export" role="menuitem">↓ <span class="tm-label">Export chat</span></button>
-                    <button class="icon-btn" id="trimChatBtn" title="Trim chat history" role="menuitem">✂️ <span class="tm-label">Trim history</span></button>
+                    <button class="icon-btn" id="newChatBtn" title="New chat" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg><span class="tm-label">New chat</span></button>
+                    <button class="icon-btn" id="summariseBtn" title="Summarise this chat" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3.5h14a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1z"/><line x1="8" y1="8.5" x2="16" y2="8.5"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="15.5" x2="13" y2="15.5"/></svg><span class="tm-label">Summarise chat</span></button>
+                    <button class="icon-btn" id="thinkingBtn" title="Enable extended thinking for next message" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a7.5 7.5 0 0 1-10.9 6.7L4 20l1.3-4.3A7.5 7.5 0 1 1 21 11.5z"/><line x1="8.5" y1="11.5" x2="8.5" y2="11.5"/><line x1="12" y1="11.5" x2="12" y2="11.5"/><line x1="15.5" y1="11.5" x2="15.5" y2="11.5"/></svg><span class="tm-label">Extended thinking</span></button>
+                    <button class="icon-btn" id="exportBtn" title="Export" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M4.5 16.5v2a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2"/></svg><span class="tm-label">Export chat</span></button>
+                    <button class="icon-btn" id="trimChatBtn" title="Trim chat history" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6.5" r="2.6"/><circle cx="6" cy="17.5" r="2.6"/><line x1="8.3" y1="7.8" x2="20" y2="17.5"/><line x1="8.3" y1="16.2" x2="20" y2="6.5"/><line x1="8.3" y1="7.8" x2="14" y2="12"/></svg><span class="tm-label">Trim history</span></button>
                 </div>
             </div>
         </div>
@@ -3087,8 +3207,8 @@
         <div class="input-area">
             <div class="image-preview-row" id="imagePreviewRow"></div>
             <div class="input-wrapper">
-                <button class="attach-btn" id="attachBtn" title="Attach file">📎</button>
-                <button class="attach-btn" id="searchToggleBtn" title="Toggle web search for this message" style="font-size:18px;">🔍</button>
+                <button class="attach-btn" id="attachBtn" title="Attach file"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5 L12 20.5 a5 5 0 0 1-7-7 L14 4 a3.5 3.5 0 0 1 5 5 L10 18 a2 2 0 0 1-3-3 L15 7"/></svg></button>
+                <button class="attach-btn" id="searchToggleBtn" title="Toggle web search for this message"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7.5"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
                 <input type="file" id="imageInput" accept="image/*,.pdf,.txt,.md,.csv" multiple style="display:none">
                 <textarea class="input-field" id="inputField" placeholder="Type your message..." rows="1"></textarea>
                 <button class="send-btn" id="sendBtn" disabled>
@@ -3104,7 +3224,7 @@
     <div class="modal-overlay" id="trimChatModal">
         <div class="modal" style="max-width:420px;">
             <div class="modal-header">
-                <h3>✂️ Trim Chat History</h3>
+                <h3><span class="heading-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6.5" r="2.6"/><circle cx="6" cy="17.5" r="2.6"/><line x1="8.3" y1="7.8" x2="20" y2="17.5"/><line x1="8.3" y1="16.2" x2="20" y2="6.5"/><line x1="8.3" y1="7.8" x2="14" y2="12"/></svg></span>Trim Chat History</h3>
                 <button class="modal-close" id="trimChatClose">✕</button>
             </div>
             <div class="modal-body">
@@ -3136,7 +3256,7 @@
     <div class="modal-overlay" id="logoutModal">
         <div class="modal" style="max-width:420px;">
             <div class="modal-header">
-                <h3>🚪 Sign Out</h3>
+                <h3><span class="heading-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><line x1="21" y1="12" x2="9" y2="12"/></svg></span>Sign Out</h3>
                 <button class="modal-close" id="logoutModalClose">✕</button>
             </div>
             <div class="modal-body">
@@ -3288,7 +3408,7 @@
                         <input type="text" id="addAiMemoryInput" placeholder="Add a memory manually..." style="flex:1; padding:8px 12px; background:var(--bg-tertiary); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); font-size:13px; outline:none; font-family:inherit;">
                         <button onclick="addAiMemoryManual()" style="padding:8px 16px; background:var(--accent); border:none; border-radius:8px; cursor:pointer; font-size:13px; color:var(--text-primary);">Add</button>
                     </div>
-                    <div class="hint">The AI automatically saves things it learns about you here. You can review, edit, or delete any entry. You can also add your own.</div>
+                    <div class="hint">Ben automatically saves things here. You can review, edit, or delete any entry. You can also add your own.</div>
                 </div>
 
                 <button class="save-btn" id="saveSettingsBtn">Save Settings</button>
@@ -3673,13 +3793,13 @@
             document.getElementById('appContainer').classList.add('visible');
             applyDarkMode();
             
-            const syncStatus = document.getElementById('syncStatus');
+            // Stage 5: the "Synced: <email>" pill is gone. The welcome-screen indicator
+            // (renderMessages) now shows nothing when synced and a quiet "Offline Mode"
+            // only when offline. showApp() still reveals Sign Out once signed in; the old
+            // #syncStatus write here was dead anyway (openHomeView() replaces #chatArea
+            // on launch, wiping that element before it could ever be seen).
             if (currentUser) {
-                syncStatus.textContent = 'Synced: ' + currentUser.email;
-                syncStatus.classList.add('online');
                 document.getElementById('logoutBtn').style.display = 'flex';
-            } else {
-                syncStatus.textContent = 'Offline Mode';
             }
 
             renderChatList();
@@ -4467,13 +4587,13 @@
 
                 const settingsBtn = document.createElement('button');
                 settingsBtn.className = 'project-icon-btn';
-                settingsBtn.textContent = '⚙️';
+                settingsBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="7" x2="9" y2="7"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="21" y1="17" x2="10" y2="17"/><circle cx="5.5" cy="7" r="2"/><circle cx="8.5" cy="12" r="2"/><circle cx="6.5" cy="17" r="2"/></svg>';
                 settingsBtn.title = 'Project settings';
                 settingsBtn.onclick = (e) => { e.stopPropagation(); openProjectSettings(project.id); };
 
                 const newChatInProjectBtn = document.createElement('button');
                 newChatInProjectBtn.className = 'project-icon-btn';
-                newChatInProjectBtn.textContent = '🪶';
+                newChatInProjectBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>';
                 newChatInProjectBtn.title = 'New chat in project';
                 newChatInProjectBtn.onclick = (e) => { e.stopPropagation(); newProjectChat(project.id); };
 
@@ -4549,7 +4669,7 @@
 
                         const renameBtn = document.createElement('button');
                         renameBtn.className = 'project-chat-delete';
-                        renameBtn.textContent = '✎';
+                        renameBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4.5l5 5L8 21l-5 1 1-5z"/><line x1="12.5" y1="6.5" x2="17.5" y2="11.5"/></svg>';
                         renameBtn.title = 'Rename chat';
                         renameBtn.onclick = (e) => renameChat(chat.id, e);
                         
@@ -5330,7 +5450,7 @@
             header.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:20px 20px 12px; gap:12px;';
             const title = document.createElement('h2');
             title.style.cssText = 'font-size:18px; font-weight:600; color:var(--text-primary);';
-            title.textContent = '📖 Library';
+            title.innerHTML = '<span class="heading-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg></span>Library';
             const newBtn = document.createElement('button');
             newBtn.textContent = '+ New Document';
             newBtn.style.cssText = 'padding:8px 14px; border-radius:8px; border:none; background:var(--accent-alt); color:var(--text-primary); font-size:13px; font-family:inherit; font-weight:500; cursor:pointer; white-space:nowrap;';
@@ -5725,7 +5845,7 @@
             header.style.cssText = 'padding:20px 20px 12px;';
             const title = document.createElement('h2');
             title.style.cssText = 'font-size:18px; font-weight:600; color:var(--text-primary);';
-            title.textContent = '⛩️ Tokens';
+            title.innerHTML = '<span class="heading-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8 Q12 4.5 21 8"/><line x1="7.5" y1="12" x2="16.5" y2="12"/><line x1="9" y1="8" x2="9" y2="20"/><line x1="15" y1="8" x2="15" y2="20"/></svg></span>Tokens';
             header.appendChild(title);
             const sub = document.createElement('p');
             sub.style.cssText = 'font-size:13px; color:var(--text-muted); margin-top:4px;';
@@ -6195,7 +6315,13 @@
                 if (chat.folder) {
                     const folderLabel = document.createElement('div');
                     folderLabel.className = 'chat-item-folder';
-                    folderLabel.textContent = '📁 ' + chat.folder;
+                    // Chocolate folder glyph (currentColor) + the folder name as a text
+                    // node, so the name stays injection-safe (never via innerHTML).
+                    const flIcon = document.createElement('span');
+                    flIcon.className = 'cif-icon';
+                    flIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5a2 2 0 0 1 2-2h3.2l2 2.3H19a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
+                    folderLabel.appendChild(flIcon);
+                    folderLabel.appendChild(document.createTextNode(chat.folder));
                     info.appendChild(folderLabel);
                 }
                 
@@ -6204,13 +6330,13 @@
                 
                 const folderBtn = document.createElement('button');
                 folderBtn.className = 'chat-rename';
-                folderBtn.innerHTML = '📁';
+                folderBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5a2 2 0 0 1 2-2h3.2l2 2.3H19a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
                 folderBtn.title = 'Move to folder';
                 folderBtn.onclick = (e) => moveToFolder(chat.id, e);
-                
+
                 const renameBtn = document.createElement('button');
                 renameBtn.className = 'chat-rename';
-                renameBtn.innerHTML = '✎';
+                renameBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4.5l5 5L8 21l-5 1 1-5z"/><line x1="12.5" y1="6.5" x2="17.5" y2="11.5"/></svg>';
                 renameBtn.title = 'Rename chat';
                 renameBtn.onclick = (e) => renameChat(chat.id, e);
                 
@@ -6571,7 +6697,10 @@
             const chat = getActiveChat();
 
             if (!chat || chat.messages.length === 0) {
-                chatArea.innerHTML = '<div class="welcome"><div class="sync-status">' + (currentUser ? 'Synced: ' + currentUser.email : 'Offline Mode') + '</div></div>';
+                // Stage 5: the "Synced: <email>" pill is dropped — a healthy sync is silent.
+                // Only surface a quiet indicator when there's genuinely no sync (offline mode).
+                // (A live sync-hiccup indicator is a separate, careful pass — not wired here.)
+                chatArea.innerHTML = '<div class="welcome">' + (currentUser ? '' : '<div class="sync-status">Offline Mode</div>') + '</div>';
                 return;
             }
 
@@ -6587,6 +6716,16 @@
             chatArea.appendChild(wrapper);
             wireCodeCopyButtons(wrapper);
             if (isNearBottom()) scrollToBottom();
+        }
+
+        // Star glyph for the message-action row — outline when unstarred, filled when
+        // starred. Shared by createMessageElement() and toggleStar() so the two never
+        // drift. The .starred class on the button carries the gold colour (see CSS);
+        // the old sepia/hue-rotate filter hack is gone now these are real SVGs.
+        function starIcon(filled) {
+            return filled
+                ? '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.8l6-.8z"/></svg>'
+                : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.8l6-.8z"/></svg>';
         }
 
         function createMessageElement(msg, msgIndex) {
@@ -6834,7 +6973,7 @@
             // Star button (for all messages)
             const starBtn = document.createElement('button');
             starBtn.className = 'message-action-btn' + (msg.starred ? ' starred' : '');
-            starBtn.innerHTML = msg.starred ? '⭐' : '☆';
+            starBtn.innerHTML = starIcon(msg.starred);
             starBtn.title = msg.starred ? 'Unstar message' : 'Star message';
             starBtn.onclick = () => toggleStar(msgIndex, starBtn, div);
             actions.appendChild(starBtn);
@@ -6842,7 +6981,7 @@
             // Copy button (for both user and assistant)
             const copyBtn = document.createElement('button');
             copyBtn.className = 'message-action-btn';
-            copyBtn.innerHTML = '📋';
+            copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
             copyBtn.title = 'Copy message';
             copyBtn.onclick = () => copyMessage(msg);
             actions.appendChild(copyBtn);
@@ -6850,15 +6989,15 @@
             // Branch button
             const branchBtn = document.createElement('button');
             branchBtn.className = 'message-action-btn';
-            branchBtn.innerHTML = '🌿';
+            branchBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="5" r="2.4"/><circle cx="6" cy="19" r="2.4"/><circle cx="18" cy="7.5" r="2.4"/><path d="M6 7.4v9.2"/><path d="M15.7 8.6a6.5 6.5 0 0 1-6 4.9H6"/></svg>';
             branchBtn.title = 'Branch chat from here';
             branchBtn.onclick = () => branchChat(msgIndex);
             actions.appendChild(branchBtn);
 
             // Delete button
             const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'message-action-btn';
-            deleteBtn.innerHTML = '❌';
+            deleteBtn.className = 'message-action-btn msg-action-delete';
+            deleteBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v2"/><path d="M6 7l1 12.5a1.5 1.5 0 0 0 1.5 1.4h7a1.5 1.5 0 0 0 1.5-1.4L18 7"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
             deleteBtn.title = 'Delete message';
             deleteBtn.onclick = () => deleteMessage(msgIndex);
             actions.appendChild(deleteBtn);
@@ -6867,7 +7006,7 @@
             // in-place correction, no truncation/regenerate; see editMessage())
             const editBtn = document.createElement('button');
             editBtn.className = 'message-action-btn';
-            editBtn.innerHTML = '✏️';
+            editBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4.5l5 5L8 21l-5 1 1-5z"/><line x1="12.5" y1="6.5" x2="17.5" y2="11.5"/></svg>';
             editBtn.title = 'Edit message';
             editBtn.onclick = () => editMessage(msgIndex, bubble);
             actions.appendChild(editBtn);
@@ -6876,7 +7015,7 @@
             if (msg.role === 'assistant') {
                 const regenBtn = document.createElement('button');
                 regenBtn.className = 'message-action-btn';
-                regenBtn.innerHTML = '🔄';
+                regenBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11.5a8 8 0 1 0-1.9 6.1"/><path d="M20 4.5V11h-6.5"/></svg>';
                 regenBtn.title = 'Regenerate response';
                 regenBtn.onclick = () => regenerateResponse(msgIndex);
                 actions.appendChild(regenBtn);
@@ -6954,7 +7093,7 @@
             const msg = chat.messages[msgIndex];
             if (!msg) return;
             msg.starred = !msg.starred;
-            btn.innerHTML = msg.starred ? '⭐' : '☆';
+            btn.innerHTML = starIcon(msg.starred);
             btn.title = msg.starred ? 'Unstar message' : 'Star message';
             btn.classList.toggle('starred', msg.starred);
             messageDiv.classList.toggle('starred-message', msg.starred);
@@ -9250,10 +9389,16 @@ ${braveText || 'No additional context available from search snippets.'}
                 picker.appendChild(opt);
             });
 
-            // Trigger journal entry manually
+            // Trigger journal entry manually.
+            // Writes to the label span so the drawn nib SVG beside it is preserved
+            // across the transient status states; falls back to the button if absent.
+            const setTriggerLabel = (t) => {
+                const l = triggerBtn.querySelector('.journal-trigger-label');
+                if (l) l.textContent = t; else triggerBtn.textContent = t;
+            };
             triggerBtn.onclick = async () => {
                 const selectedChatId = picker.value || null;
-                triggerBtn.textContent = '⏳ Writing...';
+                setTriggerLabel('Writing…');
                 triggerBtn.disabled = true;
                 try {
                     const payload = { journal: true };
@@ -9268,21 +9413,21 @@ ${braveText || 'No additional context available from search snippets.'}
                     });
                     const data = await res.json();
                     if (data.skipped) {
-                        triggerBtn.textContent = '😶 Nothing to write';
+                        setTriggerLabel('Nothing to write');
                     } else if (data.success) {
-                        triggerBtn.textContent = '✅ Entry written!';
+                        setTriggerLabel('Entry written');
                         // Reload entries
                         await loadJournalEntries(list);
                     } else {
-                        triggerBtn.textContent = '❌ Error';
+                        setTriggerLabel('Error');
                         console.error('Journal trigger error:', data);
                     }
                 } catch(e) {
-                    triggerBtn.textContent = '❌ Failed';
+                    setTriggerLabel('Failed');
                     console.error('Journal trigger failed:', e);
                 }
                 setTimeout(() => {
-                    triggerBtn.textContent = '✍ Write entry';
+                    setTriggerLabel('Write entry');
                     triggerBtn.disabled = false;
                 }, 3000);
             };
@@ -9416,7 +9561,7 @@ ${braveText || 'No additional context available from search snippets.'}
             backBtn.onclick = settingsBackToChats;
             const title = document.createElement('h2');
             title.style.cssText = 'font-size:18px; font-weight:600; color:var(--text-primary);';
-            title.textContent = '⚙️ Settings';
+            title.innerHTML = '<span class="heading-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="7" x2="9" y2="7"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="21" y1="17" x2="10" y2="17"/><circle cx="5.5" cy="7" r="2"/><circle cx="8.5" cy="12" r="2"/><circle cx="6.5" cy="17" r="2"/></svg></span>Settings';
             header.appendChild(backBtn);
             header.appendChild(title);
             header.appendChild(document.createElement('div')); // spacer, keeps title centered
