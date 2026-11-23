@@ -3510,7 +3510,7 @@
             { id: 'deepseek/deepseek-v4-pro-0813', name: 'Deepseek V4 Pro' },
             { id: 'deepseek/deepseek-v4.1-flash-1017', name: 'DeepSeek 4.1 Flash' },
             { id: 'z-ai/glm-5.3-flash', name: 'GLM 5.3 Flash' },
-            { id: 'minimax/minimax-m3', name: 'Minimax M3' },
+            { id: 'google/gemini-4-argon', name: 'Argon' },
 	        { id: 'xiaomi/mimo-v2.6-pro', name: 'Mimo 2.6 Pro' },
 
         ];
@@ -7995,7 +7995,7 @@ Do NOT search for things you already know confidently.`;
         // image (as long as it's still inside his reply window). One line per future text-only model.
         function isTextOnlyModel(modelId) {
             const id = (modelId || '').toLowerCase();
-            return id.includes('deepseek');
+            return id.includes('deepseek-v4-pro');
         }
 
         // Which of Ben's generated images are still visible to him, and which user message
