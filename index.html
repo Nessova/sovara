@@ -8190,6 +8190,44 @@ Do NOT search for things you already know confidently.`;
             }
         }
 
+        // [[DOC_EDIT: …]] … [[END_DOC]] — turns each complete document in the last message into
+        // a review card (msg.docEditProposals) and strips it from the visible reply.
+        // finishReason only chooses the wording when a document is unfinished.
+        function processDocEditTags(chat, chatProject, finishReason) {
+            const msg = chat.messages[chat.messages.length - 1];
+            if (!msg) return;
+            const currentContent = msg.content || '';
+            const docBlocks = findDocEditBlocks(currentContent);
+            const pendingDocEdits = docBlocks.filter(b => b.complete && b.content);
+            pendingDocEdits.forEach(b =>
+                console.log(`📄 DOC_EDIT detected: "${b.filename}" (${b.content.length} chars)`));
+
+            // An unfinished document is never offered; its text stays visible in the reply.
+            if (chatProject && docBlocks.some(b => !b.complete)) {
+                showToast(finishReason === 'length'
+                    ? 'Document edit was cut off — not applied'
+                    : 'Document edit not applied — check its END_DOC tag', true);
+            }
+
+            if (pendingDocEdits.length === 0) return;
+
+            // Strip DOC_EDIT tags from visible message
+            msg.content = mapDocEdits(currentContent,
+                outside => outside,
+                (block, raw) => (block.complete && block.content) ? '' : raw
+            ).trim();
+            // Store proposals on the message — persisted in state so they survive re-renders
+            msg.docEditProposals = pendingDocEdits.map((p, i) => ({
+                id: 'dep_' + Date.now() + '_' + i,
+                filename: p.filename,
+                newContent: p.content,
+                truncated: false, // only complete documents get this far
+                resolved: false,
+                resolvedAs: null  // 'accepted' | 'rejected'
+            }));
+            if (isChatActive(chat)) renderMessages();
+        }
+
         // [[TOKEN: …]] — Ben leaves a small gift for Ness (tokens table). Strips the tags.
         async function processTokenTags(chat, chatProject) {
             const tokenRegex = /\[\[TOKEN:\s*([\s\S]*?)\]\]/gi;
@@ -8415,6 +8453,7 @@ Do NOT search for things you already know confidently.`;
                 const decoder = new TextDecoder();
                 let fullResponse = '';
                 let fullThinking = '';
+                let finishReason = null;
 
                 const typingEl = document.getElementById('typing-indicator');
                 if (typingEl) typingEl.remove();
@@ -8432,6 +8471,9 @@ Do NOT search for things you already know confidently.`;
                         if (data === '[DONE]') break;
                         try {
                             const parsed = JSON.parse(data);
+                            if (parsed.choices[0]?.finish_reason) {
+                                finishReason = parsed.choices[0].finish_reason;
+                            }
                             const delta = parsed.choices[0]?.delta;
                             if (!delta) continue;
 
@@ -8459,6 +8501,7 @@ Do NOT search for things you already know confidently.`;
                 finishAssistantMessage(chat);
                 // Same post-stream tag handling as the main path (shared helpers).
                 processMemoryTags(chat, fullResponse);
+                processDocEditTags(chat, chatProject, finishReason);
                 await processImageGenTag(chat);
                 await processTokenTags(chat, chatProject);
                 if (fullThinking) injectThinkingBlock(fullThinking, streamingMsgIndex, chat);
@@ -8918,39 +8961,9 @@ ${braveText || 'No additional context available from search snippets.'}
                 // Extract and save AI memories from response (shared helper — also strips the tags)
                 processMemoryTags(chat, fullResponse);
 
-                // Extract and handle document edit proposals from response
-                // Run on the already-memory-stripped content
-                const currentContent = chat.messages[chat.messages.length - 1].content;
-                const docBlocks = findDocEditBlocks(currentContent);
-                const pendingDocEdits = docBlocks.filter(b => b.complete && b.content);
-                pendingDocEdits.forEach(b =>
-                    console.log(`📄 DOC_EDIT detected: "${b.filename}" (${b.content.length} chars)`));
-
-                // An unfinished document is never offered; its text stays visible in the reply.
-                if (chatProject && docBlocks.some(b => !b.complete)) {
-                    showToast(finishReason === 'length'
-                        ? 'Document edit was cut off — not applied'
-                        : 'Document edit not applied — check its END_DOC tag', true);
-                }
-
-                if (pendingDocEdits.length > 0) {
-                    // Strip DOC_EDIT tags from visible message
-                    const strippedContent = mapDocEdits(currentContent,
-                        outside => outside,
-                        (block, raw) => (block.complete && block.content) ? '' : raw
-                    ).trim();
-                    chat.messages[chat.messages.length - 1].content = strippedContent;
-                    // Store proposals on the message — persisted in state so they survive re-renders
-                    chat.messages[chat.messages.length - 1].docEditProposals = pendingDocEdits.map((p, i) => ({
-                        id: 'dep_' + Date.now() + '_' + i,
-                        filename: p.filename,
-                        newContent: p.content,
-                        truncated: false, // only complete documents get this far
-                        resolved: false,
-                        resolvedAs: null  // 'accepted' | 'rejected'
-                    }));
-                    if (isChatActive(chat)) renderMessages();
-                }
+                // Document edit proposals (shared helper — streamContinuation() calls the same one).
+                // Runs on the already-memory-stripped content.
+                processDocEditTags(chat, chatProject, finishReason);
 
                 // Detect [[SEARCH: query]] tag — two independent gates, no bleed:
                 // non-project chats use globalBenSearch; project chats use allowBenSearch only
