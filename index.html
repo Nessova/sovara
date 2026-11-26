@@ -5349,10 +5349,13 @@
             const visEl = document.getElementById('studioEditVisible');
             const descNow = descEl ? descEl.value : (studioEditSnapshot.description || '');
             const visNow = visEl ? visEl.checked : (studioEditSnapshot.visibleToBen === true);
+            const wsEl = document.getElementById('studioEditWorkshop');
+            const wsNow = wsEl ? wsEl.checked : (studioEditSnapshot.visibleToWorkshop === true);
             return titleEl.value !== studioEditSnapshot.title
                 || contentEl.value !== studioEditSnapshot.content
                 || descNow !== (studioEditSnapshot.description || '')
-                || visNow !== (studioEditSnapshot.visibleToBen === true);
+                || visNow !== (studioEditSnapshot.visibleToBen === true)
+                || wsNow !== (studioEditSnapshot.visibleToWorkshop === true);
         }
 
         // Call at the top of any action that would navigate away from Studio.
@@ -5503,7 +5506,8 @@
                 previewEl.className = 'studio-note-preview';
                 previewEl.textContent = (note.content || '').slice(0, 220);
 
-                if (note.visible_to_ben) titleEl.textContent = '📖 ' + titleEl.textContent;
+                const marks = (note.visible_to_ben ? '📖 ' : '') + (note.visible_to_workshop ? '🌙 ' : '');
+                titleEl.textContent = marks + titleEl.textContent;
 
                 card.appendChild(titleEl);
                 card.appendChild(dateEl);
@@ -5520,7 +5524,7 @@
             if (!supabaseClient || !currentUser) return;
             studioMode = 'edit';
             studioActiveNoteId = null;
-            studioEditSnapshot = { title: '', content: '', description: '', visibleToBen: false };
+            studioEditSnapshot = { title: '', content: '', description: '', visibleToBen: false, visibleToWorkshop: false };
             studioRenderEdit();
         }
 
@@ -5561,10 +5565,13 @@
             dateEl.textContent = 'Updated ' + formatDate(note.updated_at);
             wrap.appendChild(dateEl);
 
-            if (note.visible_to_ben) {
+            if (note.visible_to_ben || note.visible_to_workshop) {
+                const rooms = [];
+                if (note.visible_to_ben) rooms.push('📖 In Ben\'s Library');
+                if (note.visible_to_workshop) rooms.push('🌙 In the Workshop Library');
                 const vis = document.createElement('div');
                 vis.style.cssText = 'font-size:12px; color:var(--accent-alt-dim); margin-bottom:18px;';
-                vis.textContent = '📖 In Ben\'s Library' + ((note.description && note.description.trim()) ? ' — ' + note.description.trim() : '');
+                vis.textContent = rooms.join(' · ') + ((note.description && note.description.trim()) ? ' — ' + note.description.trim() : '');
                 wrap.appendChild(vis);
             }
 
@@ -5615,7 +5622,7 @@
             if (!note) return;
             studioMode = 'edit';
             studioActiveNoteId = id;
-            studioEditSnapshot = { title: note.title || '', content: note.content || '', description: note.description || '', visibleToBen: note.visible_to_ben === true };
+            studioEditSnapshot = { title: note.title || '', content: note.content || '', description: note.description || '', visibleToBen: note.visible_to_ben === true, visibleToWorkshop: note.visible_to_workshop === true };
             studioRenderEdit();
         }
 
@@ -5640,8 +5647,9 @@
             contentArea.value = studioEditSnapshot.content;
             contentArea.style.cssText = 'width:100%; min-height:400px; padding:14px; background:var(--bg-tertiary); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); font-size:15px; line-height:1.6; font-family:inherit; outline:none; resize:vertical;';
 
-            // Library fields: a one-line description for Ben's catalogue, and the toggle that
-            // decides whether Ben can see/open this document at all. Both default off/empty.
+            // Library fields: a one-line description for Ben's catalogue, and two independent
+            // toggles — chats (visible_to_ben) and the 3am Workshop (visible_to_workshop).
+            // All default off/empty.
             const descInput = document.createElement('input');
             descInput.type = 'text';
             descInput.id = 'studioEditDescription';
@@ -5657,9 +5665,21 @@
             visibleCheck.checked = studioEditSnapshot.visibleToBen === true;
             visibleCheck.style.cssText = 'width:17px; height:17px; cursor:pointer; flex-shrink:0;';
             const visibleText = document.createElement('span');
-            visibleText.textContent = '\U0001F4D6 Ben can read this document (adds it to his Library)';
+            visibleText.textContent = '📖 Ben can read this document (adds it to his Library)';
             visibleRow.appendChild(visibleCheck);
             visibleRow.appendChild(visibleText);
+
+            const workshopRow = document.createElement('label');
+            workshopRow.style.cssText = visibleRow.style.cssText;
+            const workshopCheck = document.createElement('input');
+            workshopCheck.type = 'checkbox';
+            workshopCheck.id = 'studioEditWorkshop';
+            workshopCheck.checked = studioEditSnapshot.visibleToWorkshop === true;
+            workshopCheck.style.cssText = visibleCheck.style.cssText;
+            const workshopText = document.createElement('span');
+            workshopText.textContent = '🌙 Workshop-Ben can read this document';
+            workshopRow.appendChild(workshopCheck);
+            workshopRow.appendChild(workshopText);
 
             const actions = document.createElement('div');
             actions.style.cssText = 'display:flex; gap:10px;';
@@ -5681,6 +5701,7 @@
             wrap.appendChild(titleInput);
             wrap.appendChild(descInput);
             wrap.appendChild(visibleRow);
+            wrap.appendChild(workshopRow);
             wrap.appendChild(contentArea);
             wrap.appendChild(actions);
             chatArea.appendChild(wrap);
@@ -5722,22 +5743,24 @@
             const visEl = document.getElementById('studioEditVisible');
             const description = descEl ? descEl.value.trim() : '';
             const visibleToBen = visEl ? visEl.checked : false;
+            const wsEl = document.getElementById('studioEditWorkshop');
+            const visibleToWorkshop = wsEl ? wsEl.checked : false;
             const now = new Date().toISOString();
 
             try {
                 if (studioActiveNoteId) {
                     const { error } = await supabaseClient
                         .from('studio_notes')
-                        .update({ title, content, description, visible_to_ben: visibleToBen, updated_at: now })
+                        .update({ title, content, description, visible_to_ben: visibleToBen, visible_to_workshop: visibleToWorkshop, updated_at: now })
                         .eq('id', studioActiveNoteId)
                         .eq('user_id', currentUser.id);
                     if (error) throw error;
                     const existing = studioNotes.find(n => n.id === studioActiveNoteId);
-                    if (existing) { existing.title = title; existing.content = content; existing.description = description; existing.visible_to_ben = visibleToBen; existing.updated_at = now; }
+                    if (existing) { existing.title = title; existing.content = content; existing.description = description; existing.visible_to_ben = visibleToBen; existing.visible_to_workshop = visibleToWorkshop; existing.updated_at = now; }
                 } else {
                     const { data, error } = await supabaseClient
                         .from('studio_notes')
-                        .insert({ user_id: currentUser.id, title, content, description, visible_to_ben: visibleToBen, created_at: now, updated_at: now })
+                        .insert({ user_id: currentUser.id, title, content, description, visible_to_ben: visibleToBen, visible_to_workshop: visibleToWorkshop, created_at: now, updated_at: now })
                         .select()
                         .single();
                     if (error) throw error;
