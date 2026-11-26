@@ -4983,6 +4983,56 @@
 
         // ── DOC-EDIT FUNCTIONS ───────────────────────────────────────
 
+        // A document runs from its DOC_EDIT opening to the END_DOC tag, so any other
+        // brackets inside it are just text. Mirrored in the workshop-session function.
+        // complete=false: no END_DOC (runs to the end of the reply), or a second opening
+        // on its own line before the END_DOC. Either way nothing from it is applied.
+        function findDocEditBlocks(text) {
+            const openTag = /\[\[DOC_EDIT:\s*([^\|\]\n]+?)\s*\|/g;
+            const endTag = /\[\[\s*END_DOC\s*\]\]/gi;
+            const blocks = [];
+            let open;
+            while ((open = openTag.exec(text)) !== null) {
+                const filename = open[1].trim();
+                endTag.lastIndex = openTag.lastIndex;
+                const close = endTag.exec(text);
+                if (!close) {
+                    // Without a document filename it's only a passing mention of the tag.
+                    if (!/\.(txt|md)$/i.test(filename)) continue;
+                    blocks.push({ start: open.index, end: text.length, filename, content: '', complete: false });
+                    break;
+                }
+                const body = text.slice(openTag.lastIndex, close.index);
+                const end = close.index + close[0].length;
+                const complete = !/\n[ \t]*\[\[DOC_EDIT:/.test(body);
+                blocks.push({ start: open.index, end, filename, content: body.trim(), complete });
+                openTag.lastIndex = end;
+            }
+            return blocks;
+        }
+
+        // Rebuilds a reply, transforming the parts outside documents and the documents separately.
+        function mapDocEdits(text, outsideFn, blockFn) {
+            let out = '';
+            let from = 0;
+            findDocEditBlocks(text).forEach(block => {
+                out += outsideFn(text.slice(from, block.start));
+                out += blockFn(block, text.slice(block.start, block.end));
+                from = block.end;
+            });
+            return out + outsideFn(text.slice(from));
+        }
+
+        // For reading tags: documents blanked out, so tags written inside them are ignored.
+        function maskDocEdits(text) {
+            return mapDocEdits(text, outside => outside, (block, raw) => ' '.repeat(raw.length));
+        }
+
+        // For removing tags from a reply without altering any document inside it.
+        function stripOutsideDocs(text, regex) {
+            return mapDocEdits(text, outside => outside.replace(regex, ''), (block, raw) => raw);
+        }
+
         function computeDiff(oldText, newText) {
             // Simple line-level LCS diff: returns array of {type:'added'|'removed'|'context', text}
             const oldLines = (oldText || '').split('\n');
@@ -5322,7 +5372,7 @@
                         meta.style.cssText = 'font-size:11.5px; color:var(--text-muted); margin-top:3px;';
                         const parts = [];
                         if (s.edits_applied > 0) parts.push(`${s.edits_applied} edit${s.edits_applied > 1 ? 's' : ''} applied`);
-                        if (s.edits_skipped_truncated > 0) parts.push(`${s.edits_skipped_truncated} skipped (truncated)`);
+                        if (s.edits_skipped_truncated > 0) parts.push(`${s.edits_skipped_truncated} skipped`);
                         meta.textContent = parts.join(' · ');
                         summaryEl.appendChild(meta);
                     }
@@ -7897,7 +7947,7 @@ Don't announce that you're generating; just include the tag and it will happen a
                 if (chatProject && chatProject.documents && chatProject.documents.length > 0) {
                     const docNames = chatProject.documents.map(d => d.name).join(', ');
                     enhancedSystemPrompt += `\n\n## Document Editing System:
-When you want to create or rewrite documents in this project, include a DOC_EDIT tag anywhere in your response — formatted as two opening brackets, "DOC_EDIT:", the filename, a pipe character, the full document content, then two closing brackets.
+When you want to create or rewrite documents in this project, include a DOC_EDIT tag anywhere in your response — formatted as two opening brackets, "DOC_EDIT:", the filename, a pipe character, then the full document content. Close the document with an END_DOC tag: two opening square brackets, END_DOC, two closing square brackets. The document ends only at that tag, so any other brackets inside it are fine. Without END_DOC the edit is not saved.
 
 The filename must exactly match one of the existing documents (${docNames}), OR be a new filename ending in .txt or .md to create a new document.
 
@@ -8112,8 +8162,9 @@ Do NOT search for things you already know confidently.`;
         // `fullResponse` is the raw streamed text of that message.
         function processMemoryTags(chat, fullResponse) {
             const memoryRegex = /\[\[SAVE_MEMORY:\s*(.*?)\]\]/gi;
+            const readable = maskDocEdits(fullResponse);
             let memoryMatch;
-            while ((memoryMatch = memoryRegex.exec(fullResponse)) !== null) {
+            while ((memoryMatch = memoryRegex.exec(readable)) !== null) {
                 const memoryText = memoryMatch[1].trim();
                 if (memoryText) {
                     // Avoid duplicates
@@ -8132,7 +8183,7 @@ Do NOT search for things you already know confidently.`;
             }
 
             // Strip memory tags from the displayed message
-            const cleanedResponse = fullResponse.replace(/\[\[SAVE_MEMORY:\s*.*?\]\]/gi, '').trim();
+            const cleanedResponse = stripOutsideDocs(fullResponse, /\[\[SAVE_MEMORY:\s*.*?\]\]/gi).trim();
             if (cleanedResponse !== fullResponse) {
                 chat.messages[chat.messages.length - 1].content = cleanedResponse;
                 if (isChatActive(chat)) renderMessages();
@@ -8146,7 +8197,8 @@ Do NOT search for things you already know confidently.`;
             if (!currentMsg) return;
             let tokenMatch;
             let tokensFound = 0;
-            while ((tokenMatch = tokenRegex.exec(currentMsg.content || '')) !== null) {
+            const readable = maskDocEdits(currentMsg.content || '');
+            while ((tokenMatch = tokenRegex.exec(readable)) !== null) {
                 const tokenContent = tokenMatch[1].trim();
                 if (tokenContent && supabaseClient && currentUser) {
                     // Determine source: workshop project, named project, or main chat
@@ -8169,8 +8221,8 @@ Do NOT search for things you already know confidently.`;
                 }
             }
             // Strip token tags from the visible message
-            if (currentMsg.content && /\[\[TOKEN:/i.test(currentMsg.content)) {
-                currentMsg.content = currentMsg.content.replace(/\[\[TOKEN:\s*[\s\S]*?\]\]/gi, '').trim();
+            if (currentMsg.content && /\[\[TOKEN:/i.test(readable)) {
+                currentMsg.content = stripOutsideDocs(currentMsg.content, /\[\[TOKEN:\s*[\s\S]*?\]\]/gi).trim();
                 if (isChatActive(chat)) renderMessages();
             }
             // Refresh badge if any tokens were saved
@@ -8189,14 +8241,14 @@ Do NOT search for things you already know confidently.`;
         async function processImageGenTag(chat) {
             const msg = chat.messages[chat.messages.length - 1];
             if (!msg || typeof msg.content !== 'string') return;
-            const imageGenMatch = msg.content.match(/\[\[IMAGE_GEN:\s*([\s\S]*?)\]\]/i);
+            const imageGenMatch = maskDocEdits(msg.content).match(/\[\[IMAGE_GEN:\s*([\s\S]*?)\]\]/i);
             if (!imageGenMatch) return;
 
             const imagePrompt = imageGenMatch[1].trim();
             console.log('🎨 IMAGE_GEN detected:', imagePrompt);
 
             // Strip the tag from visible message
-            msg.content = msg.content.replace(/\[\[IMAGE_GEN:\s*[\s\S]*?\]\]/gi, '').trim();
+            msg.content = stripOutsideDocs(msg.content, /\[\[IMAGE_GEN:\s*[\s\S]*?\]\]/gi).trim();
             if (isChatActive(chat)) renderMessages();
 
             // Show a generating indicator
@@ -8869,32 +8921,31 @@ ${braveText || 'No additional context available from search snippets.'}
                 // Extract and handle document edit proposals from response
                 // Run on the already-memory-stripped content
                 const currentContent = chat.messages[chat.messages.length - 1].content;
-                const docEditRegex = /\[\[DOC_EDIT:\s*([^\|\]]+?)\s*\|([\s\S]*?)\]\]/g;
-                const pendingDocEdits = [];
-                let docEditMatch;
-                while ((docEditMatch = docEditRegex.exec(currentContent)) !== null) {
-                    const filename = docEditMatch[1].trim();
-                    const newContent = docEditMatch[2].trim();
-                    if (filename && newContent) {
-                        // Detect likely truncation: response hit max_tokens
-                        const truncated = finishReason === 'length';
-                        pendingDocEdits.push({ filename, newContent, truncated });
-                        console.log(`📄 DOC_EDIT detected: "${filename}" (${newContent.length} chars)${truncated ? ' ⚠️ TRUNCATED' : ''}`);
-                    }
+                const docBlocks = findDocEditBlocks(currentContent);
+                const pendingDocEdits = docBlocks.filter(b => b.complete && b.content);
+                pendingDocEdits.forEach(b =>
+                    console.log(`📄 DOC_EDIT detected: "${b.filename}" (${b.content.length} chars)`));
+
+                // An unfinished document is never offered; its text stays visible in the reply.
+                if (chatProject && docBlocks.some(b => !b.complete)) {
+                    showToast(finishReason === 'length'
+                        ? 'Document edit was cut off — not applied'
+                        : 'Document edit not applied — check its END_DOC tag', true);
                 }
 
                 if (pendingDocEdits.length > 0) {
                     // Strip DOC_EDIT tags from visible message
-                    const strippedContent = currentContent
-                        .replace(/\[\[DOC_EDIT:\s*[^\|\]]+?\s*\|[\s\S]*?\]\]/g, '')
-                        .trim();
+                    const strippedContent = mapDocEdits(currentContent,
+                        outside => outside,
+                        (block, raw) => (block.complete && block.content) ? '' : raw
+                    ).trim();
                     chat.messages[chat.messages.length - 1].content = strippedContent;
                     // Store proposals on the message — persisted in state so they survive re-renders
                     chat.messages[chat.messages.length - 1].docEditProposals = pendingDocEdits.map((p, i) => ({
                         id: 'dep_' + Date.now() + '_' + i,
                         filename: p.filename,
-                        newContent: p.newContent,
-                        truncated: p.truncated,
+                        newContent: p.content,
+                        truncated: false, // only complete documents get this far
                         resolved: false,
                         resolvedAs: null  // 'accepted' | 'rejected'
                     }));
@@ -8908,16 +8959,15 @@ ${braveText || 'No additional context available from search snippets.'}
                     : appState.globalBenSearch === true;
 
                 if (searchEnabledForChat) {
-                    const searchTagMatch = chat.messages[chat.messages.length - 1].content.match(/\[\[SEARCH:\s*([^\]]+)\]\]/i);
+                    const searchTagMatch = maskDocEdits(chat.messages[chat.messages.length - 1].content).match(/\[\[SEARCH:\s*([^\]]+)\]\]/i);
                     if (searchTagMatch) {
                         const searchQuery = searchTagMatch[1].trim();
                         console.log('🔍 Ben triggered [[SEARCH:]]:', searchQuery);
 
                         // Strip the tag from Ben's visible message
                         chat.messages[chat.messages.length - 1].content =
-                            chat.messages[chat.messages.length - 1].content
-                                .replace(/\[\[SEARCH:\s*[^\]]+\]\]/gi, '')
-                                .trim();
+                            stripOutsideDocs(chat.messages[chat.messages.length - 1].content,
+                                /\[\[SEARCH:\s*[^\]]+\]\]/gi).trim();
                         if (isChatActive(chat)) renderMessages();
                         saveState();
 
@@ -8974,16 +9024,15 @@ ${braveText || 'No additional context available from search snippets.'}
                 // context. One doc per turn (the continuation isn't re-scanned for tags, exactly
                 // like search); available in every chat. Needs sign-in (docs live in Supabase).
                 if (supabaseClient && currentUser) {
-                    const libraryTagMatch = chat.messages[chat.messages.length - 1].content.match(/\[\[LIBRARY:\s*([^\]]+)\]\]/i);
+                    const libraryTagMatch = maskDocEdits(chat.messages[chat.messages.length - 1].content).match(/\[\[LIBRARY:\s*([^\]]+)\]\]/i);
                     if (libraryTagMatch) {
                         const docTitle = libraryTagMatch[1].trim();
                         console.log('📖 Ben triggered [[LIBRARY:]]:', docTitle);
 
                         // Strip ALL library tags from the visible message (only the first is actioned)
                         chat.messages[chat.messages.length - 1].content =
-                            chat.messages[chat.messages.length - 1].content
-                                .replace(/\[\[LIBRARY:\s*[^\]]+\]\]/gi, '')
-                                .trim();
+                            stripOutsideDocs(chat.messages[chat.messages.length - 1].content,
+                                /\[\[LIBRARY:\s*[^\]]+\]\]/gi).trim();
                         if (isChatActive(chat)) renderMessages();
                         saveState();
 
